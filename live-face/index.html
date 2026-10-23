@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Живые фрукты — камера</title><link rel="stylesheet" href="style.css">
+<script type="importmap">{"imports":{"three":"./vendor/three/three.module.js"}}</script>
+<script src="vendor/mediapipe/face_mesh.js"></script>
+</head><body>
+<header><div class="brand">◉ Живые фрукты <span>Твои глаза. Твой рот.</span></div><span class="local">Обработка на твоём компьютере</span></header>
+<main><section class="stage-wrap"><div id="stage"></div><div class="stage-footer"><span id="status" role="status">Загружаю апельсин…</span><span id="fps"></span></div><div id="output-hint">Esc — вернуть настройки</div></section>
+<aside><h1>Лицо в прямом эфире</h1><p class="intro">Камера передаёт настоящее изображение глаз и рта на 3D-фрукт.</p>
+<label>Персонаж<select id="fruit"><option value="orange">Апельсин</option><option value="pineapple">Ананас</option></select></label>
+<label>Камера<select id="camera"><option value="">Камера по умолчанию</option></select></label>
+<div class="buttons"><button id="start" class="primary">Включить камеру</button><button id="stop" disabled>Остановить</button></div>
+<p id="error" role="alert" hidden></p>
+<div class="divider"></div>
+<label>Фон<select id="background"><option value="dark">Тёмный</option><option value="blue">Синий для OBS — сохраняет листья</option><option value="green">Зелёный для OBS</option><option value="transparent">Прозрачный в браузере</option></select></label>
+<label class="range">Крупность глаз <output id="eyeValue">1.00</output><input id="eyeZoom" type="range" min="0.65" max="1.8" value="1" step="0.01"></label>
+<label class="range">Крупность рта <output id="mouthValue">1.00</output><input id="mouthZoom" type="range" min="0.65" max="1.8" value="1" step="0.01"></label>
+<label class="range">Движение головы <output id="motionValue">0.65</output><input id="motion" type="range" min="0" max="1" value="0.65" step="0.01"></label>
+<label class="check"><input id="mirror" type="checkbox" checked> Зеркальное изображение лица</label>
+<label class="check"><input id="showCamera" type="checkbox"> Показать исходное видео</label>
+<video id="cameraVideo" autoplay muted playsinline hidden></video>
+<div class="buttons"><button id="calibrate" disabled>Запомнить положение головы</button></div>
+<button id="output" class="wide">Режим вывода для OBS</button>
+<p class="note">В OBS добавь «Захват окна» браузера. Для удаления фона выбери синий цвет здесь и фильтр «Хромакей» в OBS. Синий фон лучше сохраняет зелёные листья.</p>
+<p class="privacy">Микрофон не используется. Приложение не записывает видео и не отправляет его на сервер. При потере лица глаза и рот скрываются.</p>
+</aside></main>
+<script type="module" src="app.js"></script></body></html>

@@ -1,6 +1,8 @@
 """Build original fruit avatars with Blender 4.3+, then package VRM 0.0."""
 import bpy, math, json, struct, pathlib
 from mathutils import Vector
+from mathutils.bvhtree import BVHTree
+FACE_SURFACE=None
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 def mat(name, color, rough=.65):
@@ -47,6 +49,16 @@ def bind(obj,arm):
 
 def pack_vrm(glb,out,bones,title):
     data=glb.read_bytes(); length,kind=struct.unpack_from('<II',data,12); doc=json.loads(data[20:20+length]); binary=data[20+length:]
+    for mesh in doc['meshes']:
+        for primitive in mesh['primitives']:
+            # Blender emits a shader color plus the original vertex-color layer.
+            # The original layer contains the edge opacity; preserve it as COLOR_0.
+            if 'COLOR_1' in primitive['attributes']:
+                primitive['attributes']['COLOR_0']=primitive['attributes']['COLOR_1']
+            if 'normalTexture' not in doc['materials'][primitive['material']]:
+                primitive['attributes'].pop('TANGENT',None)
+            for attr in list(primitive['attributes']):
+                if attr.startswith('COLOR_') and attr!='COLOR_0':del primitive['attributes'][attr]
     nodes={n.get('name'):i for i,n in enumerate(doc['nodes'])}
     groups=[]
     for preset,targets in [('blink',[('Eye_L','Blink'),('Eye_R','Blink')]),('blink_l',[('Eye_L','Blink')]),('blink_r',[('Eye_R','Blink')])]+[(x,[('Mouth',x.upper())]) for x in ['a','i','u','e','o']]+[('joy',[('Eye_L','Happy'),('Eye_R','Happy'),('Mouth','JOY')]),('sorrow',[('Mouth','SORROW')]),('angry',[('Mouth','ANGRY')]),('fun',[('Mouth','JOY')])]:
@@ -67,7 +79,9 @@ def pack_vrm(glb,out,bones,title):
         if normal:
             target['textureProperties']['_BumpMap']=normal['index']
             target['keywordMap']['_NORMALMAP']=True
-    doc.setdefault('extensions',{})['VRM']={'exporterVersion':'FruitAvatars-3.0','specVersion':'0.0','meta':{'title':title,'version':'3.0','author':'Vtube-model','contactInformation':'','reference':'','allowedUserName':'Everyone','violentUssageName':'Disallow','sexualUssageName':'Disallow','commercialUssageName':'Allow','otherPermissionUrl':'','licenseName':'CC0','otherLicenseUrl':''},'humanoid':{'humanBones':[{'bone':b,'node':nodes[b],'useDefaultValues':True} for b in bones],'armStretch':.05,'legStretch':.05,'upperArmTwist':.5,'lowerArmTwist':.5,'upperLegTwist':.5,'lowerLegTwist':.5,'feetSpacing':0,'hasTranslationDoF':False},'firstPerson':{'firstPersonBone':nodes['head'],'firstPersonBoneOffset':{'x':0,'y':0,'z':0},'meshAnnotations':[{'mesh':i,'firstPersonFlag':'Auto'} for i in range(len(doc['meshes']))],'lookAtTypeName':'Bone','lookAtHorizontalInner':{'curve':[0,0,0,1,1,1,1,0],'xRange':90,'yRange':10},'lookAtHorizontalOuter':{'curve':[0,0,0,1,1,1,1,0],'xRange':90,'yRange':10},'lookAtVerticalDown':{'curve':[0,0,0,1,1,1,1,0],'xRange':90,'yRange':10},'lookAtVerticalUp':{'curve':[0,0,0,1,1,1,1,0],'xRange':90,'yRange':10}},'blendShapeMaster':{'blendShapeGroups':groups},'secondaryAnimation':{'boneGroups':[],'colliderGroups':[]},'materialProperties':materials}
+    # Official VRM 0 shader sentinel: preserve glTF metallic/roughness PBR.
+    for target in materials:target['shader']='VRM_USE_GLTFSHADER'
+    doc.setdefault('extensions',{})['VRM']={'exporterVersion':'FruitAvatars-4.0','specVersion':'0.0','meta':{'title':title,'version':'4.0','author':'Vtube-model','contactInformation':'','reference':'','allowedUserName':'Everyone','violentUssageName':'Disallow','sexualUssageName':'Disallow','commercialUssageName':'Allow','otherPermissionUrl':'','licenseName':'CC0','otherLicenseUrl':''},'humanoid':{'humanBones':[{'bone':b,'node':nodes[b],'useDefaultValues':True} for b in bones],'armStretch':.05,'legStretch':.05,'upperArmTwist':.5,'lowerArmTwist':.5,'upperLegTwist':.5,'lowerLegTwist':.5,'feetSpacing':0,'hasTranslationDoF':False},'firstPerson':{'firstPersonBone':nodes['head'],'firstPersonBoneOffset':{'x':0,'y':0,'z':0},'meshAnnotations':[{'mesh':i,'firstPersonFlag':'Auto'} for i in range(len(doc['meshes']))],'lookAtTypeName':'Bone','lookAtHorizontalInner':{'curve':[0,0,0,1,1,1,1,0],'xRange':90,'yRange':10},'lookAtHorizontalOuter':{'curve':[0,0,0,1,1,1,1,0],'xRange':90,'yRange':10},'lookAtVerticalDown':{'curve':[0,0,0,1,1,1,1,0],'xRange':90,'yRange':10},'lookAtVerticalUp':{'curve':[0,0,0,1,1,1,1,0],'xRange':90,'yRange':10}},'blendShapeMaster':{'blendShapeGroups':groups},'secondaryAnimation':{'boneGroups':[],'colliderGroups':[]},'materialProperties':materials}
     doc.setdefault('extensionsUsed',[]).append('VRM')
     j=json.dumps(doc,separators=(',',':')).encode(); j+=b' '*((-len(j))%4)
     out.write_bytes(struct.pack('<III',0x46546c67,2,20+len(j)+len(binary))+struct.pack('<II',len(j),0x4e4f534a)+j+binary)
@@ -88,7 +102,7 @@ def image_texture(name,rgb,noncolor=False):
     im.pixels.foreach_set(rgba.ravel());im.pack();return im
 
 def skin_material(kind):
-    size=1536; yy,xx=np.mgrid[0:size,0:size].astype(float);u=xx/size;v=yy/size
+    size=2048; yy,xx=np.mgrid[0:size,0:size].astype(float);u=xx/size;v=yy/size
     rng=np.random.default_rng(419);noise=np.zeros_like(u)
     for i in range(12):
         k=2+i*3;noise+=np.sin(u*math.tau*k+rng.random()*6)*np.cos(v*math.tau*(k*.73)+rng.random()*6)/(i+3)
@@ -111,27 +125,33 @@ def skin_material(kind):
         green=np.exp(-((v-.985)/.05)**2)*.5
         rgb=rgb*(1-green[...,None])+np.array([.36,.38,.055])*green[...,None]
     else:
-        # Diamond fruitlets: olive borders, golden centers and dry brown eyes.
-        a=u*16+v*11+.13*np.sin(v*72+u*30)+.06*np.sin(u*212+v*95);b=u*16-v*11+.12*np.sin(u*63-v*41)+.05*np.sin(v*179+u*86)
-        fa=a%1-.5;fb=b%1-.5;edge=np.maximum(abs(fa),abs(fb))
-        ridge=np.exp(-((edge-.46)/.09)**2);center=np.exp(-((fa/(.15+.04*np.sin(np.floor(a)*8)))**2+(fb/.19)**2))
-        radi=np.sqrt((fa/.5)**2+(fb/.5)**2)
-        star=np.exp(-((radi-(.21+.065*np.cos(np.arctan2(fb,fa)*3+np.floor(a)*5)+.025*np.sin(np.arctan2(fb,fa)*7)))/.05)**2)
-        variation=.105*np.sin(np.floor(a)*19+np.floor(b)*7)+.065*noise+.018*np.sin(u*823+v*732)*np.cos(u*532-v*651)
-        gold=np.stack([.62+variation,.39+variation*.65,.10+variation*.25],axis=-1)
-        olive=np.array([.22,.25,.08]);brown=np.array([.20,.105,.035])
-        rgb=gold*(1-ridge[...,None]*.7)+olive*ridge[...,None]*.7
-        dry=np.clip(center*.72+star*.18,0,1)
-        rgb=rgb*(1-dry[...,None])+brown*dry[...,None]
-        height=.26*(1-(edge/.5)**2)-.12*ridge+.12*star-.16*center+.035*noise
-        rgb+=rng.normal(0,.008,(size,size,1))
-    m=mat(kind+' natural skin',(1,1,1),.64);nodes=m.node_tree.nodes;links=m.node_tree.links;p=nodes.get('Principled BSDF')
-    tex=nodes.new('ShaderNodeTexImage');tex.image=image_texture(kind+'_albedo_1536',rgb);links.new(tex.outputs['Color'],p.inputs['Base Color'])
+        # A 4x4 atlas of irregular dry fruitlet surfaces, applied to real hexagonal scales.
+        tu=u*4%1;tv=v*4%1;tx=tu-.5;ty=tv-.5
+        seed=np.floor(u*4)*13+np.floor(v*4)*29
+        theta=np.arctan2(ty,tx);r=np.sqrt(tx*tx+ty*ty)
+        turbulence=.025*np.sin(tu*39+tv*22+seed)+.017*np.sin(tv*91-tu*51)
+        wound=np.exp(-((r+turbulence)/(.105+.015*np.sin(seed)))**2)
+        cracks=np.exp(-(np.sin(theta*5+seed+.3*np.sin(r*20))/.12)**2)*np.exp(-((r-.15)/.12)**2)
+        flecks=np.maximum(0,np.sin(u*1891+v*1223)*np.sin(v*2233-u*1773)-.45)
+        variation=.055*noise+.025*np.sin(seed)+.025*np.sin(u*621+v*521)*np.cos(v*899)
+        edge=np.clip((r-.25)/.35,0,1)
+        gold=np.stack([.49+variation,.34+variation*.8,.105+variation*.4],axis=-1)
+        olive=np.array([.22,.25,.105]);drybrown=np.array([.28,.17,.075])
+        rgb=gold*(1-edge[...,None]*.8)+olive*edge[...,None]*.8
+        damage=np.clip(wound*.85+cracks*.5,0,1)
+        rgb=rgb*(1-damage[...,None])+drybrown*damage[...,None]
+        rgb-=flecks[...,None]*.08
+        height=.05*noise-.3*wound-.13*cracks+.06*flecks
+        rgb+=rng.normal(0,.012,(size,size,1))
+    m=mat(kind+' natural skin',(1,1,1),.52);nodes=m.node_tree.nodes;links=m.node_tree.links;p=nodes.get('Principled BSDF')
+    tex=nodes.new('ShaderNodeTexImage');tex.image=image_texture(kind+'_albedo_2048',rgb);links.new(tex.outputs['Color'],p.inputs['Base Color'])
     # Tangent-space normals are embedded in glTF and mirrored in VRM MToon.
     dy,dx=np.gradient(height);strength=2.6 if kind=='orange' else 11
     n=np.stack([-dx*strength,-dy*strength,np.ones_like(dx)],axis=-1);n/=np.linalg.norm(n,axis=-1,keepdims=True)
-    texn=nodes.new('ShaderNodeTexImage');texn.image=image_texture(kind+'_normal_1536',n*.5+.5,True)
+    texn=nodes.new('ShaderNodeTexImage');texn.image=image_texture(kind+'_normal_2048',n*.5+.5,True)
     normal=nodes.new('ShaderNodeNormalMap');links.new(texn.outputs['Color'],normal.inputs['Color']);links.new(normal.outputs['Normal'],p.inputs['Normal'])
+    rough=np.clip((.46 if kind=='orange' else .74)+.09*noise,.25,.92)
+    tr=nodes.new('ShaderNodeTexImage');tr.image=image_texture(kind+'_roughness',np.repeat(rough[...,None],3,axis=-1),True);links.new(tr.outputs['Color'],p.inputs['Roughness'])
     return m
 
 def leaf_material(kind):
@@ -150,6 +170,9 @@ def leaf_material(kind):
 RADII={ 'orange':(.51,.47,.465), 'pineapple':(.44,.37,.57) }
 
 def surface(kind,x,z,offset=0):
+    if FACE_SURFACE is not None:
+        hit=FACE_SURFACE.ray_cast(Vector((x,-3,z)),Vector((0,1,0)))[0]
+        if hit is not None:return hit.y-offset
     rx,ry,rz=RADII[kind]; h=(z-1.5)/rz
     if kind=='pineapple':
         width=max(.001,1-abs(h)**3.3)**.5
@@ -164,13 +187,7 @@ def fruit_body(kind,material):
         width=math.cos(lat) if kind=='orange' else max(0,1-abs(h)**3.3)**.5
         for i in range(n+1):
             u=i/n; a=u*math.tau
-            bump=.0018*math.sin(a*17+lat*7)*math.sin(lat*13) if kind=='orange' else 0
-            if kind=='pineapple':
-                da=abs(((u*18+v*12+.5)%1)-.5); db=abs(((u*18-v*12+.5)%1)-.5)
-                clear=.65*math.exp(-((abs(u-.75)/.12)**6+((v-.52)/.22)**6))
-                aa=u*16+v*11+.13*math.sin(v*72+u*30)+.06*math.sin(u*212+v*95)
-                bb=u*16-v*11+.12*math.sin(u*63-v*41)+.05*math.sin(v*179+u*86)
-                bump=.022*(math.sin(math.pi*aa)**2*math.sin(math.pi*bb)**2)*(1-clear)
+            bump=.003*math.sin(a*5+lat*3)*math.sin(lat*7) if kind=='orange' else 0
             verts.append(((rx*width+bump)*math.cos(a),(ry*width+bump)*math.sin(a),1.5+rz*h)); uv.append((u,v))
     for j in range(rings):
         for i in range(n):
@@ -178,6 +195,42 @@ def fruit_body(kind,material):
     ob=mesh_object('Fruit_body',verts,faces,material); layer=ob.data.uv_layers.new(name='UVMap')
     for p in ob.data.polygons:
         for li in p.loop_indices:layer.data[li].uv=uv[ob.data.loops[li].vertex_index]
+    return ob
+
+def pineapple_scales(material):
+    import random
+    rng=random.Random(37);vertices=[];faces=[];uvs=[]
+    step=.083;count=16;angle_step=math.tau/count
+    corners=[(0,2/3),(.5,1/3),(.5,-1/3),(0,-2/3),(-.5,-1/3),(-.5,1/3)]
+    # Each ring follows the fruit surface. The middle rises; edges and the central eye sink.
+    for row in range(13):
+        zc=.995+row*step
+        for col in range(count):
+            a=(col+(row%2)*.5)*angle_step
+            tile=rng.randrange(16);depth=.006+rng.random()*.008;twist=rng.uniform(-.018,.018)
+            start=len(vertices)
+            for ring,radius in enumerate([0,.18,.45,.76,.98]):
+                for k in range(18):
+                    c0=corners[k//3];c1=corners[(k//3+1)%6];t=(k%3)/3
+                    dx=(c0[0]*(1-t)+c1[0]*t)*radius;dz=(c0[1]*(1-t)+c1[1]*t)*radius
+                    z=zc+dz*step;h=(z-1.5)/.57;width=max(.002,1-abs(h)**3.3)**.5
+                    aa=a+dx*angle_step+twist*radius
+                    bump=[depth*.75,depth*.9,depth,depth*.50,.001][ring]
+                    bump+=.0015*math.sin(k*4+row+col)
+                    xx=.44*width*math.cos(aa)
+                    if math.sin(aa)<-.5:
+                        masks=[math.exp(-(((xx-cx)/.16)**2+((z-1.60)/.105)**2)**2) for cx in [-.19,.19]]
+                        masks.append(math.exp(-((xx/.22)**2+((z-1.32)/.14)**2)**2))
+                        bump*=1-.97*max(masks)
+                    vertices.append(((.44*width+bump)*math.cos(aa),(.37*width+bump)*math.sin(aa),z))
+                    uvs.append(((tile%4+.5+dx*.93)/4,(tile//4+.5+dz*.70)/4))
+            for ring in range(4):
+                for k in range(18):
+                    q=start+ring*18+k;n=start+ring*18+(k+1)%18
+                    faces.append((q,n,n+18,q+18))
+    ob=mesh_object('Individual pineapple fruitlets',vertices,faces,material);layer=ob.data.uv_layers.new(name='UVMap')
+    for polygon in ob.data.polygons:
+        for li in polygon.loop_indices:layer.data[li].uv=uvs[ob.data.loops[li].vertex_index]
     return ob
 
 def ribbon(name,base,tip,width,material,bend=.1):
@@ -195,7 +248,7 @@ def ribbon(name,base,tip,width,material,bend=.1):
     for polygon in ob.data.polygons:
         for li in polygon.loop_indices:
             vi=ob.data.loops[li].vertex_index;uv.data[li].uv=((vi%5)/4,(vi//5)/steps)
-    solid=ob.modifiers.new('Leaf thickness','SOLIDIFY');solid.thickness=.004
+    solid=ob.modifiers.new('Leaf thickness','SOLIDIFY');solid.thickness=.0015
     bpy.context.view_layer.objects.active=ob; bpy.ops.object.modifier_apply(modifier=solid.name)
     return ob
 
@@ -215,42 +268,60 @@ def patch(name,kind,cx,cz,wx,hz,material,offset=.008):
     for i in range(64):faces.append((0,1+i,1+(i+1)%64))
     return mesh_object(name,verts,faces,material)
 
-def make_mouth(kind,dark,tongue,teeth,outline):
-    # One continuous smile silhouette; inner patches deform with every vowel.
-    params={'Basis':(.105,.019,.033),'A':(.098,.100,.014),'I':(.145,.042,.018),'U':(.052,.068,0),'E':(.128,.071,.016),'O':(.070,.093,0),'JOY':(.142,.088,.035),'SORROW':(.095,.012,-.030),'ANGRY':(.11,.021,-.012)}
-    cz=1.345; pieces=[]
-    def coords(p,layer):
-        w,h,curve=p;w*=.78;h*=.65;curve*=.4; vs=[]
-        for j in range(9):
-            r=j/8
-            for i in range(64):
-                a=math.tau*i/64; xx=r*math.cos(a); zz=r*math.sin(a)
-                if layer==0:x=w*xx;z=cz+h*zz+curve*(xx*xx)
-                elif layer==1:x=w*.64*xx;z=cz-h*.55+h*.28*zz+curve*(.64*xx)**2
-                else:x=w*.70*xx;z=cz+h*.67+h*.13*zz+curve*(.70*xx)**2
-                off=.012+layer*.002
-                vs.append((x,surface(kind,x,z,off),z))
-        return vs
-    faces=[]
-    for j in range(8):
-        for i in range(64):k=j*64+i;n=j*64+(i+1)%64;faces.append((k,k+64,n+64,n))
-    for layer,material in enumerate([dark,tongue,teeth]):
-        ob=mesh_object('MouthLayer',coords(params['Basis'],layer),faces,material);ob.shape_key_add(name='Basis')
-        for name,p in params.items():
-            if name=='Basis':continue
-            key=ob.shape_key_add(name=name)
-            for v,co in zip(key.data,coords(p,layer)):v.co=co
-        pieces.append(ob)
-    return join(pieces,'Mouth')
+def photo_material():
+    m=mat('Photoreal human facial features',(1,1,1),.53);n=m.node_tree.nodes;l=m.node_tree.links;p=n.get('Principled BSDF')
+    tex=n.new('ShaderNodeTexImage');tex.image=bpy.data.images.load(str(ROOT/'assets/human_features.png'),check_existing=True);tex.image.pack()
+    color=n.new('ShaderNodeVertexColor');color.layer_name='Color'
+    mix=n.new('ShaderNodeMixRGB');mix.blend_type='MULTIPLY';mix.inputs[0].default_value=1
+    l.new(tex.outputs['Color'],mix.inputs[1]);l.new(color.outputs['Color'],mix.inputs[2]);l.new(mix.outputs['Color'],p.inputs['Base Color']);l.new(color.outputs['Alpha'],p.inputs['Alpha'])
+    m.surface_render_method='DITHERED'
+    return m
+
+def photo_feature(name,kind,cx,cz,width,height,region,material,mouth=False):
+    verts=[];faces=[];uvs=[];colors=[];rings=16;segments=96
+    for j in range(rings+1):
+        r=j/rings
+        for i in range(segments):
+            a=i*math.tau/segments;nx=r*math.cos(a);nz=r*math.sin(a)
+            x=cx+nx*width;z=cz+nz*height
+            verts.append((x,surface(kind,x,z,.008+.012*(1-r*r)),z))
+            uvs.append((region[0]+nx*region[2],1-region[1]+nz*region[3]))
+            alpha=1 if r<.70 else max(0,(1-r)/.30)**1.5
+            colors.append((1,1,1,alpha))
+    for j in range(rings):
+        for i in range(segments):
+            q=j*segments+i;n=j*segments+(i+1)%segments;faces.append((q,q+segments,n+segments,n))
+    ob=mesh_object(name,verts,faces,material);uv=ob.data.uv_layers.new(name='UVMap');vc=ob.data.color_attributes.new(name='Color',type='FLOAT_COLOR',domain='POINT')
+    for i,c in enumerate(colors):vc.data[i].color=c
+    ob.data.color_attributes.active_color=vc
+    for polygon in ob.data.polygons:
+        for li in polygon.loop_indices:uv.data[li].uv=uvs[ob.data.loops[li].vertex_index]
+    ob.shape_key_add(name='Basis')
+    shapes={'A':(.88,1.45),'I':(1.08,.65),'U':(.58,1.0),'E':(1.10,1.12),'O':(.65,1.45),'JOY':(1.1,1.2),'SORROW':(.88,.55),'ANGRY':(1.02,.55)} if mouth else {'Blink':(1,.012),'Happy':(1,.10)}
+    for keyname,(sx,sz) in shapes.items():
+        key=ob.shape_key_add(name=keyname)
+        for v,base in zip(key.data,verts):
+            x=cx+(base[0]-cx)*sx;z=cz+(base[2]-cz)*sz
+            if mouth and keyname in {'A','I','U','E','O','JOY'}:
+                nz=(base[2]-cz)/height;openness=max(0,min(1,(.12-nz)/.45))
+                z=base[2]-(sz-1)*height*openness
+            if keyname=='SORROW':z-=.028*(1-((x-cx)/width)**2)
+            if keyname=='Happy':z+=.015*(1-((x-cx)/width)**2)
+            r2=((x-cx)/(width*sx))**2+((z-cz)/(height*sz))**2
+            v.co=(x,surface(kind,x,z,.008+.012*max(0,1-r2)),z)
+    return ob
 
 def build(kind):
+    global FACE_SURFACE
+    FACE_SURFACE=None
     bpy.ops.object.select_all(action='SELECT');bpy.ops.object.delete(use_global=False)
     skin=skin_material(kind);green=leaf_material(kind);lightgreen=green;vein=mat('Leaf veins',(.26,.48,.045));stem=mat('Natural stem',(.18,.075,.022))
     dark=mat('Espresso outline',(.018,.008,.006),.48);white=mat('Warm eye white',(.52,.48,.39),.35);spark=mat('Catchlights',(1,1,.98),.18)
     iris=mat('Amber iris',(.26,.075,.012),.24) if kind=='orange' else mat('Teal iris',(.065,.095,.035),.3)
     irisl=mat('Iris lower light',(.68,.27,.025),.3) if kind=='orange' else mat('Jade lower light',(.12,.15,.045),.35)
     cheek=mat('Soft apricot blush',(.95,.20,.055));mouthdark=mat('Mouth interior',(.065,.007,.012));tongue=mat('Tongue',(.32,.055,.065));teeth=mat('Smile ivory',(.65,.58,.45))
-    arm,bones=rig();static=[fruit_body(kind,skin)]
+    arm,bones=rig();static=[fruit_body(kind,skin if kind=='orange' else mat('Pineapple crevices',(.09,.075,.025),.9))]
+    if kind=='pineapple':static.append(pineapple_scales(skin))
     if kind=='orange':
         static.append(tube('Short woody stem',[(0,0,1.95),(.005,0,1.985),(.012,.005,2.015)],.013,stem))
         for i in range(6):
@@ -266,31 +337,20 @@ def build(kind):
                 tip=(spread*math.cos(a),spread*math.sin(a),2.015+height+.035*math.sin(i*3.1))
                 static.append(ribbon('Crown blade',base,tip,[.037,.035,.03,.022][row],green,.07))
 
-    # Larger inset-looking eyes, colored irises and highlights; no protruding eyebrow rods.
-    for s,side in [(-1,'L'),(1,'R')]:
-        x=s*.183;z=1.60;y=surface(kind,x,z,.012)
-        pieces=[sphere('Eye_'+side,(x,y,z),(.100,.025,.128),dark,40,28),sphere('Sclera',(x,y-.018,z),(.088,.019,.115),white,40,28),sphere('Iris',(x+s*.005,y-.035,z-.005),(.065,.013,.088),iris,40,24),sphere('Iris glow',(x+s*.005,y-.045,z-.036),(.050,.007,.045),irisl,32,20),sphere('Pupil',(x+s*.005,y-.050,z+.004),(.043,.009,.064),dark,32,24),sphere('Large catchlight',(x-.025,y-.061,z+.046),(.007,.003,.009),spark,24,16),sphere('Small catchlight',(x+.026,y-.058,z-.034),(.003,.002,.004),spark,20,12)]
-        eye=join(pieces,'Eye_'+side)
-        for vertex in eye.data.vertices:
-            vertex.co.x*=.68;vertex.co.z*=.43;vertex.co.y*=.55
-        eye.shape_key_add(name='Basis')
-        light_vertices={vi for polygon in eye.data.polygons if eye.data.materials[polygon.material_index]!=dark for vi in polygon.vertices}
-        for name in ['Blink','Happy']:
-            key=eye.shape_key_add(name=name)
-            for vi,v in enumerate(key.data):
-                # Full closure becomes a curved eyelid; retract light-colored layers.
-                xx=v.co.x; original_z=v.co.z
-                v.co.z=original_z*.025+( .020 if name=='Happy' else -.010)*(1-(xx/.1)**2)
-                v.co.y=surface(kind,x+xx,z+v.co.z,.010)-y
-                if vi in light_vertices:v.co.y+=.065
+    verts=[];polys=[]
+    for obj in static:
+        base=len(verts);verts.extend([obj.matrix_world@v.co for v in obj.data.vertices]);polys.extend([tuple(base+i for i in poly.vertices) for poly in obj.data.polygons])
+    FACE_SURFACE=BVHTree.FromPolygons(verts,polys)
+    face_mat=photo_material()
+    for side,cx,region in [('L',-.19,(.50,.163,.37,.135)),('R',.19,(.50,.491,.37,.135))]:
+        eye=photo_feature('Eye_'+side,kind,cx,1.60,.14,.078,region,face_mat)
         bind(eye,arm)
-
-    mouth=make_mouth(kind,mouthdark,tongue,teeth,dark);bind(mouth,arm)
+    mouth=photo_feature('Mouth',kind,0,1.32,.19,.107,(.50,.825,.46,.167),face_mat,True);bind(mouth,arm)
     body=join(static,'Fruit_body');bind(body,arm)
     bpy.ops.object.select_all(action='DESELECT')
     for o in [arm,body,mouth,bpy.data.objects['Eye_L'],bpy.data.objects['Eye_R']]:o.select_set(True)
     glb=ROOT/'models'/f'{kind}.glb'
-    bpy.ops.export_scene.gltf(filepath=str(glb),export_format='GLB',use_selection=True,export_animations=False,export_morph=True,export_tangents=True,export_skins=True,export_all_influences=True,export_extras=True,export_yup=True)
+    bpy.ops.export_scene.gltf(filepath=str(glb),export_format='GLB',use_selection=True,export_animations=False,export_morph=True,export_tangents=True,export_skins=True,export_all_influences=True,export_extras=True,export_vertex_color='ACTIVE',export_all_vertex_colors=True,export_yup=True)
     pack_vrm(glb,ROOT/'models'/f'{kind}.vrm',bones,'Orange' if kind=='orange' else 'Pineapple');glb.unlink()
     bpy.context.preferences.filepaths.save_version=0;scene=bpy.context.scene;scene.render.engine='CYCLES';scene.cycles.samples=96;scene.cycles.use_denoising=False
     scene.world.color=(.16,.16,.16);scene.view_settings.view_transform='AgX'
@@ -300,13 +360,18 @@ def build(kind):
     bpy.ops.object.camera_add(location=(.10,-5,2.02));cam=bpy.context.object;cam.rotation_euler=(Vector((0,0,1.79 if kind=='pineapple' else 1.59))-cam.location).to_track_quat('-Z','Y').to_euler();cam.data.type='ORTHO';cam.data.ortho_scale=2.15 if kind=='pineapple' else 1.45;scene.camera=cam
     bpy.ops.wm.save_as_mainfile(filepath=str(ROOT/'models'/f'{kind}.blend'))
     scene.render.filepath=str(ROOT/'previews'/f'{kind}.png');bpy.ops.render.render(write_still=True)
+    front_location=cam.location.copy();front_rotation=cam.rotation_euler.copy()
+    cam.location=(2.7,-4,2.15);cam.rotation_euler=(Vector((0,0,1.72))-cam.location).to_track_quat('-Z','Y').to_euler()
+    scene.render.resolution_percentage=65;scene.render.filepath=str(ROOT/'previews'/f'{kind}-three-quarter.png');bpy.ops.render.render(write_still=True)
+    cam.location=front_location;cam.rotation_euler=front_rotation
     # Exercise actual shape keys in an additional render, rather than only inspecting metadata.
     for name in ['Eye_L','Eye_R']:bpy.data.objects[name].data.shape_keys.key_blocks['Happy'].value=1
     mouth.data.shape_keys.key_blocks['JOY'].value=1
     scene.render.resolution_percentage=65;scene.render.filepath=str(ROOT/'previews'/f'{kind}-joy.png');bpy.ops.render.render(write_still=True)
 
-import sys
-selected=sys.argv[sys.argv.index('--')+1:] if '--' in sys.argv else ['orange','pineapple']
-for kind in selected:
-    if kind not in RADII:raise ValueError(kind)
-    build(kind)
+if __name__=='__main__':
+    import sys
+    selected=sys.argv[sys.argv.index('--')+1:] if '--' in sys.argv else ['orange','pineapple']
+    for kind in selected:
+        if kind not in RADII:raise ValueError(kind)
+        build(kind)

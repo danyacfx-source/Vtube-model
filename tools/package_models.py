@@ -4,7 +4,7 @@ from zipfile import ZipFile, ZIP_DEFLATED
 root=Path(__file__).resolve().parents[1]
 for name,paths in [
     ('VSeeFace-fruits.zip',[root/'models/orange.vrm',root/'models/pineapple.vrm',root/'README.md']),
-    ('Fruit-avatars.zip',[root/'README.md']+[p for folder in ['models','previews','tools','validation'] for p in sorted((root/folder).iterdir()) if p.is_file()]),
+    ('Fruit-avatars.zip',[root/'README.md']+[p for folder in ['models','previews','tools','validation','assets'] for p in sorted((root/folder).iterdir()) if p.is_file()]),
 ]:
     with ZipFile(root/name,'w',ZIP_DEFLATED) as archive:
         for path in paths:

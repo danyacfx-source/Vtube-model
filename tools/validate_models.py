@@ -27,8 +27,21 @@ for path in sorted((root/'models').glob('*.vrm')):
                 target=p['targets'][b['index']]['POSITION']; acc=doc['accessors'][target]
                 assert any(abs(x)>1e-6 for x in acc['min']+acc['max']), 'Empty expression'
     assert len(v['materialProperties'])==len(doc['materials'])
-    assert v['meta']['version']=='3.0'
+    assert v['meta']['version']=='4.0'
     textured=[(m,vm) for m,vm in zip(doc['materials'],v['materialProperties']) if 'baseColorTexture' in m.get('pbrMetallicRoughness',{})]
+    assert all(m['shader']=='VRM_USE_GLTFSHADER' for m in v['materialProperties'])
+    assert any('metallicRoughnessTexture' in m.get('pbrMetallicRoughness',{}) for m in doc['materials']), 'Roughness map missing'
+    for name in ['Eye_L','Eye_R','Mouth']:
+        node=next(n for n in doc['nodes'] if n.get('name')==name)
+        for primitive in doc['meshes'][node['mesh']]['primitives']:
+            assert 'COLOR_0' in primitive['attributes'], 'Face edge opacity missing'
+            color=doc['accessors'][primitive['attributes']['COLOR_0']];view=doc['bufferViews'][color['bufferView']]
+            fmt={5121:'B',5123:'H',5126:'f'}[color['componentType']];size=struct.calcsize(fmt);stride=view.get('byteStride',size*4)
+            offset=20+n+8+view.get('byteOffset',0)+color.get('byteOffset',0)
+            alpha=[struct.unpack_from('<'+fmt,data,offset+i*stride+size*3)[0] for i in range(color['count'])]
+            assert min(alpha)==0 and max(alpha)>0, 'Face edge opacity is constant'
+
+            assert doc['materials'][primitive['material']]['alphaMode']=='BLEND'
     assert textured, 'Skin texture must be embedded for VSeeFace'
     for m,vm in textured:
         ti=m['pbrMetallicRoughness']['baseColorTexture']['index']

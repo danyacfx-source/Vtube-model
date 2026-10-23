@@ -27,7 +27,7 @@ for path in sorted((root/'models').glob('*.vrm')):
                 target=p['targets'][b['index']]['POSITION']; acc=doc['accessors'][target]
                 assert any(abs(x)>1e-6 for x in acc['min']+acc['max']), 'Empty expression'
     assert len(v['materialProperties'])==len(doc['materials'])
-    assert v['meta']['version']=='2.0'
+    assert v['meta']['version']=='3.0'
     textured=[(m,vm) for m,vm in zip(doc['materials'],v['materialProperties']) if 'baseColorTexture' in m.get('pbrMetallicRoughness',{})]
     assert textured, 'Skin texture must be embedded for VSeeFace'
     for m,vm in textured:
@@ -35,6 +35,11 @@ for path in sorted((root/'models').glob('*.vrm')):
         assert vm['textureProperties']['_MainTex']==ti
         image=doc['images'][doc['textures'][ti]['source']]
         assert 'bufferView' in image and image['mimeType']=='image/png'
+    normal_materials=[(m,vm) for m,vm in zip(doc['materials'],v['materialProperties']) if 'normalTexture' in m]
+    assert normal_materials, 'Realistic peel normal map missing'
+    for m,vm in normal_materials:
+        assert vm['textureProperties']['_BumpMap']==m['normalTexture']['index']
+        assert vm['keywordMap']['_NORMALMAP']
     assert all('uri' not in image for image in doc.get('images',[])), 'External image dependency'
 
     triangles=sum(doc['accessors'][p['indices']]['count']//3 for m in doc['meshes'] for p in m['primitives'])

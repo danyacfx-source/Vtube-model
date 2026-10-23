@@ -1,0 +1,31 @@
+"""Check the VRM 0 skeleton, face bindings and binary container."""
+import json, pathlib, struct
+root=pathlib.Path(__file__).resolve().parents[1]
+required={'hips','spine','chest','neck','head'}|{s+b for s in ('left','right') for b in ('UpperArm','LowerArm','Hand','UpperLeg','LowerLeg','Foot')}
+for path in sorted((root/'models').glob('*.vrm')):
+    data=path.read_bytes(); magic,version,size=struct.unpack_from('<III',data)
+    assert (magic,version,size)==(0x46546c67,2,len(data))
+    n,t=struct.unpack_from('<II',data,12); assert t==0x4e4f534a
+    doc=json.loads(data[20:20+n]); v=doc['extensions']['VRM']; assert v['specVersion']=='0.0'
+    bones={b['bone']:b['node'] for b in v['humanoid']['humanBones']}; assert required<=bones.keys()
+    assert len(set(bones.values()))==len(bones)
+    assert all(0<=i<len(doc['nodes']) for i in bones.values())
+    skin_nodes=[n for n in doc['nodes'] if 'mesh' in n]
+    assert len(skin_nodes)==4 and all('skin' in n for n in skin_nodes)
+    for node in skin_nodes:
+        skin=doc['skins'][node['skin']]; assert bones['head'] in skin['joints']
+        for p in doc['meshes'][node['mesh']]['primitives']:
+            assert {'POSITION','JOINTS_0','WEIGHTS_0'}<=p['attributes'].keys()
+    groups={g['presetName']:g for g in v['blendShapeMaster']['blendShapeGroups']}
+    assert {'a','i','u','e','o','blink','blink_l','blink_r','joy'}<=groups.keys()
+    for g in groups.values():
+        assert g['binds']
+        for b in g['binds']:
+            mesh=doc['meshes'][b['mesh']]
+            assert b['weight']==100
+            for p in mesh['primitives']:
+                target=p['targets'][b['index']]['POSITION']; acc=doc['accessors'][target]
+                assert any(abs(x)>1e-6 for x in acc['min']+acc['max']), 'Empty expression'
+    assert len(v['materialProperties'])==len(doc['materials'])
+    triangles=sum(doc['accessors'][p['indices']]['count']//3 for m in doc['meshes'] for p in m['primitives'])
+    print(f'{path.name}: PASS; {len(bones)} humanoid bones, {len(groups)} expression presets, {triangles:,} triangles')

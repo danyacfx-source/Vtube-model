@@ -17,7 +17,7 @@ for path in sorted((root/'models').glob('*.vrm')):
         for p in doc['meshes'][node['mesh']]['primitives']:
             assert {'POSITION','JOINTS_0','WEIGHTS_0'}<=p['attributes'].keys()
     groups={g['presetName']:g for g in v['blendShapeMaster']['blendShapeGroups']}
-    assert {'a','i','u','e','o','blink','blink_l','blink_r','joy'}<=groups.keys()
+    assert {'a','i','u','e','o','blink','blink_l','blink_r','joy','sorrow','angry','fun'}<=groups.keys()
     for g in groups.values():
         assert g['binds']
         for b in g['binds']:
@@ -27,5 +27,15 @@ for path in sorted((root/'models').glob('*.vrm')):
                 target=p['targets'][b['index']]['POSITION']; acc=doc['accessors'][target]
                 assert any(abs(x)>1e-6 for x in acc['min']+acc['max']), 'Empty expression'
     assert len(v['materialProperties'])==len(doc['materials'])
+    assert v['meta']['version']=='2.0'
+    textured=[(m,vm) for m,vm in zip(doc['materials'],v['materialProperties']) if 'baseColorTexture' in m.get('pbrMetallicRoughness',{})]
+    assert textured, 'Skin texture must be embedded for VSeeFace'
+    for m,vm in textured:
+        ti=m['pbrMetallicRoughness']['baseColorTexture']['index']
+        assert vm['textureProperties']['_MainTex']==ti
+        image=doc['images'][doc['textures'][ti]['source']]
+        assert 'bufferView' in image and image['mimeType']=='image/png'
+    assert all('uri' not in image for image in doc.get('images',[])), 'External image dependency'
+
     triangles=sum(doc['accessors'][p['indices']]['count']//3 for m in doc['meshes'] for p in m['primitives'])
     print(f'{path.name}: PASS; {len(bones)} humanoid bones, {len(groups)} expression presets, {triangles:,} triangles')

@@ -2,11 +2,11 @@
   "uri": "orange.vrm",
   "mimeType": "model/gltf-binary",
   "validatorVersion": "2.0.0-dev.3.10",
-  "validatedAt": "2026-10-23T11:02:17.503Z",
+  "validatedAt": "2026-10-23T11:15:55.291Z",
   "issues": {
     "numErrors": 0,
     "numWarnings": 5,
-    "numInfos": 12,
+    "numInfos": 17,
     "numHints": 0,
     "messages": [
       {
@@ -37,6 +37,24 @@
         "code": "UNUSED_OBJECT",
         "message": "This object may be unused.",
         "severity": 2,
+        "pointer": "/meshes/0/primitives/2/attributes/TEXCOORD_0"
+      },
+      {
+        "code": "UNUSED_OBJECT",
+        "message": "This object may be unused.",
+        "severity": 2,
+        "pointer": "/meshes/0/primitives/3/attributes/TEXCOORD_0"
+      },
+      {
+        "code": "UNUSED_OBJECT",
+        "message": "This object may be unused.",
+        "severity": 2,
+        "pointer": "/meshes/0/primitives/4/attributes/TEXCOORD_0"
+      },
+      {
+        "code": "UNUSED_OBJECT",
+        "message": "This object may be unused.",
+        "severity": 2,
         "pointer": "/meshes/1/primitives/0/attributes/TEXCOORD_0"
       },
       {
@@ -49,7 +67,19 @@
         "code": "UNUSED_OBJECT",
         "message": "This object may be unused.",
         "severity": 2,
-        "pointer": "/meshes/2/primitives/0/attributes/TEXCOORD_0"
+        "pointer": "/meshes/1/primitives/2/attributes/TEXCOORD_0"
+      },
+      {
+        "code": "UNUSED_OBJECT",
+        "message": "This object may be unused.",
+        "severity": 2,
+        "pointer": "/meshes/1/primitives/3/attributes/TEXCOORD_0"
+      },
+      {
+        "code": "UNUSED_OBJECT",
+        "message": "This object may be unused.",
+        "severity": 2,
+        "pointer": "/meshes/1/primitives/4/attributes/TEXCOORD_0"
       },
       {
         "code": "UNUSED_OBJECT",
@@ -85,7 +115,7 @@
         "code": "UNUSED_OBJECT",
         "message": "This object may be unused.",
         "severity": 2,
-        "pointer": "/meshes/3/primitives/0/attributes/TEXCOORD_0"
+        "pointer": "/meshes/2/primitives/6/attributes/TEXCOORD_0"
       },
       {
         "code": "NODE_SKINNED_MESH_NON_ROOT",
@@ -125,18 +155,31 @@
         "pointer": "/buffers/0",
         "mimeType": "application/gltf-buffer",
         "storage": "glb",
-        "byteLength": 1410044
+        "byteLength": 3443280
+      },
+      {
+        "pointer": "/images/0",
+        "mimeType": "image/png",
+        "storage": "buffer-view",
+        "image": {
+          "width": 1024,
+          "height": 1024,
+          "format": "rgb",
+          "primaries": "srgb",
+          "transfer": "srgb",
+          "bits": 8
+        }
       }
     ],
     "animationCount": 0,
-    "materialCount": 8,
+    "materialCount": 14,
     "hasMorphTargets": true,
     "hasSkins": true,
-    "hasTextures": false,
+    "hasTextures": true,
     "hasDefaultScene": true,
-    "drawCallCount": 11,
-    "totalVertexCount": 19058,
-    "totalTriangleCount": 27478,
+    "drawCallCount": 20,
+    "totalVertexCount": 30082,
+    "totalTriangleCount": 56132,
     "maxUVs": 1,
     "maxInfluences": 4,
     "maxAttributes": 5

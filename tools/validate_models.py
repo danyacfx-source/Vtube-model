@@ -23,11 +23,13 @@ for path in sorted((root/'models').glob('*.vrm')):
         for b in g['binds']:
             mesh=doc['meshes'][b['mesh']]
             assert b['weight']==100
+            moved=False
             for p in mesh['primitives']:
                 target=p['targets'][b['index']]['POSITION']; acc=doc['accessors'][target]
-                assert any(abs(x)>1e-6 for x in acc['min']+acc['max']), 'Empty expression'
+                moved|=any(abs(x)>1e-6 for x in acc['min']+acc['max'])
+            assert moved, 'Empty expression'
     assert len(v['materialProperties'])==len(doc['materials'])
-    assert v['meta']['version']==('5.0' if path.stem=='pineapple' else '4.0')
+    assert v['meta']['version']==('6.0' if path.stem=='pineapple' else '4.0')
     if path.stem=='pineapple':
         assert {'lookup','lookdown','lookleft','lookright'}<=groups.keys()
         assert v['firstPerson']['lookAtTypeName']=='BlendShape'
@@ -37,6 +39,11 @@ for path in sorted((root/'models').glob('*.vrm')):
     for name in ['Eye_L','Eye_R','Mouth']:
         node=next(n for n in doc['nodes'] if n.get('name')==name)
         for primitive in doc['meshes'][node['mesh']]['primitives']:
+            if path.stem=='pineapple':
+                material=doc['materials'][primitive['material']]
+                assert material.get('alphaMode','OPAQUE')=='OPAQUE'
+                assert 'baseColorTexture' not in material.get('pbrMetallicRoughness',{}), 'Cartoon face still uses a photograph'
+                continue
             assert 'COLOR_0' in primitive['attributes'], 'Face edge opacity missing'
             color=doc['accessors'][primitive['attributes']['COLOR_0']];view=doc['bufferViews'][color['bufferView']]
             fmt={5121:'B',5123:'H',5126:'f'}[color['componentType']];size=struct.calcsize(fmt);stride=view.get('byteStride',size*4)

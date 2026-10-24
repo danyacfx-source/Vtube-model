@@ -2,11 +2,11 @@
   "uri": "pineapple.vrm",
   "mimeType": "model/gltf-binary",
   "validatorVersion": "2.0.0-dev.3.10",
-  "validatedAt": "2026-10-24T08:54:40.245Z",
+  "validatedAt": "2026-10-24T11:09:53.590Z",
   "issues": {
     "numErrors": 0,
     "numWarnings": 5,
-    "numInfos": 11,
+    "numInfos": 4,
     "numHints": 0,
     "messages": [
       {
@@ -55,55 +55,13 @@
         "code": "UNUSED_OBJECT",
         "message": "This object may be unused.",
         "severity": 2,
-        "pointer": "/accessors/3"
+        "pointer": "/accessors/168"
       },
       {
         "code": "UNUSED_OBJECT",
         "message": "This object may be unused.",
         "severity": 2,
-        "pointer": "/accessors/4"
-      },
-      {
-        "code": "UNUSED_OBJECT",
-        "message": "This object may be unused.",
-        "severity": 2,
-        "pointer": "/accessors/25"
-      },
-      {
-        "code": "UNUSED_OBJECT",
-        "message": "This object may be unused.",
-        "severity": 2,
-        "pointer": "/accessors/26"
-      },
-      {
-        "code": "UNUSED_OBJECT",
-        "message": "This object may be unused.",
-        "severity": 2,
-        "pointer": "/accessors/46"
-      },
-      {
-        "code": "UNUSED_OBJECT",
-        "message": "This object may be unused.",
-        "severity": 2,
-        "pointer": "/accessors/60"
-      },
-      {
-        "code": "UNUSED_OBJECT",
-        "message": "This object may be unused.",
-        "severity": 2,
-        "pointer": "/accessors/67"
-      },
-      {
-        "code": "UNUSED_OBJECT",
-        "message": "This object may be unused.",
-        "severity": 2,
-        "pointer": "/accessors/68"
-      },
-      {
-        "code": "IMAGE_NPOT_DIMENSIONS",
-        "message": "Image has non-power-of-two dimensions: 1024x1536.",
-        "severity": 2,
-        "pointer": "/images/0"
+        "pointer": "/accessors/182"
       }
     ],
     "truncated": false
@@ -119,15 +77,15 @@
         "pointer": "/buffers/0",
         "mimeType": "application/gltf-buffer",
         "storage": "glb",
-        "byteLength": 21260848
+        "byteLength": 19199952
       },
       {
         "pointer": "/images/0",
         "mimeType": "image/png",
         "storage": "buffer-view",
         "image": {
-          "width": 1024,
-          "height": 1536,
+          "width": 2048,
+          "height": 2048,
           "format": "rgb",
           "primaries": "srgb",
           "transfer": "srgb",
@@ -165,19 +123,6 @@
         "mimeType": "image/png",
         "storage": "buffer-view",
         "image": {
-          "width": 2048,
-          "height": 2048,
-          "format": "rgb",
-          "primaries": "srgb",
-          "transfer": "srgb",
-          "bits": 8
-        }
-      },
-      {
-        "pointer": "/images/4",
-        "mimeType": "image/png",
-        "storage": "buffer-view",
-        "image": {
           "width": 512,
           "height": 512,
           "format": "rgb",
@@ -188,14 +133,14 @@
       }
     ],
     "animationCount": 0,
-    "materialCount": 4,
+    "materialCount": 16,
     "hasMorphTargets": true,
     "hasSkins": true,
     "hasTextures": true,
     "hasDefaultScene": true,
-    "drawCallCount": 6,
-    "totalVertexCount": 56170,
-    "totalTriangleCount": 99600,
+    "drawCallCount": 16,
+    "totalVertexCount": 60809,
+    "totalTriangleCount": 107792,
     "maxUVs": 1,
     "maxInfluences": 4,
     "maxAttributes": 6

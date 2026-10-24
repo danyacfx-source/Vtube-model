@@ -13,11 +13,11 @@ for kind in ['orange','pineapple']:
         inward=sum(p.normal.dot(p.center-Vector((0,0,1.5))) < -.0001 for p in scales)
         assert scales and inward/len(scales)<.02, 'Pineapple fruitlet normals point inward'
     for name in ['Eye_L','Eye_R','Mouth']:
-        ob=bpy.data.objects[name];colors=ob.data.color_attributes['Color'].data
+        ob=bpy.data.objects[name];layer=ob.data.color_attributes.get('Color');colors=layer.data if layer else None
         for key in ob.data.shape_keys.key_blocks:
             bad=0;minimum=1
             for poly in ob.data.polygons:
-                if sum(colors[i].color[3] for i in poly.vertices)/len(poly.vertices)<.5:continue
+                if colors and sum(colors[i].color[3] for i in poly.vertices)/len(poly.vertices)<.5:continue
                 center=sum((ob.matrix_world@key.data[i].co for i in poly.vertices),Vector())/len(poly.vertices)
                 hit=bvh.ray_cast(Vector((center.x,-3,center.z)),Vector((0,1,0)))[0]
                 if hit is not None:

@@ -100,6 +100,10 @@ def pack_vrm(glb,out,bones,title):
         vrm['firstPerson']['lookAtTypeName']='BlendShape'
         for direction in ['HorizontalInner','HorizontalOuter','VerticalDown','VerticalUp']:
             vrm['firstPerson']['lookAt'+direction]['yRange']=100
+        if any(n.get('extras',{}).get('face_style')=='cartoon' for n in doc['nodes']):
+            vrm['meta']['version']='6.0'
+            vrm['meta']['title']='Cartoon Pineapple — VSeeFace'
+            vrm['exporterVersion']='FruitAvatars-6.0'
     j=json.dumps(doc,separators=(',',':')).encode(); j+=b' '*((-len(j))%4)
     out.write_bytes(struct.pack('<III',0x46546c67,2,20+len(j)+len(binary))+struct.pack('<II',len(j),0x4e4f534a)+j+binary)
 
@@ -393,11 +397,18 @@ def build(kind):
     for obj in static:
         base=len(verts);verts.extend([obj.matrix_world@v.co for v in obj.data.vertices]);polys.extend([tuple(base+i for i in poly.vertices) for poly in obj.data.polygons])
     FACE_SURFACE=BVHTree.FromPolygons(verts,polys)
-    face_mat=photo_material()
-    for side,cx,region in [('L',-.19,(.50,.163,.37,.135)),('R',.19,(.50,.491,.37,.135))]:
-        eye=photo_feature('Eye_'+side,kind,cx,1.60,.14,.078,region,face_mat)
-        bind(eye,arm)
-    mouth=photo_feature('Mouth',kind,0,1.32,.19,.107,(.50,.825,.46,.167),face_mat,True);bind(mouth,arm)
+    if kind=='pineapple':
+        import runpy
+        make=runpy.run_path(str(ROOT/'tools/cartoon_face.py'))['make_feature']
+        for name,cx,cz in [('Eye_L',-.18,1.63),('Eye_R',.18,1.63),('Mouth',0,1.32)]:
+            feature=make(globals(),name,cx,cz,name=='Mouth');bind(feature,arm)
+        mouth=bpy.data.objects['Mouth']
+    else:
+        face_mat=photo_material()
+        for side,cx,region in [('L',-.19,(.50,.163,.37,.135)),('R',.19,(.50,.491,.37,.135))]:
+            eye=photo_feature('Eye_'+side,kind,cx,1.60,.14,.078,region,face_mat)
+            bind(eye,arm)
+        mouth=photo_feature('Mouth',kind,0,1.32,.19,.107,(.50,.825,.46,.167),face_mat,True);bind(mouth,arm)
     body=join(static,'Fruit_body');bind(body,arm)
     bpy.ops.object.select_all(action='DESELECT')
     for o in [arm,body,mouth,bpy.data.objects['Eye_L'],bpy.data.objects['Eye_R']]:o.select_set(True)

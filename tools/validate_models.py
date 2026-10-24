@@ -27,7 +27,10 @@ for path in sorted((root/'models').glob('*.vrm')):
                 target=p['targets'][b['index']]['POSITION']; acc=doc['accessors'][target]
                 assert any(abs(x)>1e-6 for x in acc['min']+acc['max']), 'Empty expression'
     assert len(v['materialProperties'])==len(doc['materials'])
-    assert v['meta']['version']=='4.0'
+    assert v['meta']['version']==('5.0' if path.stem=='pineapple' else '4.0')
+    if path.stem=='pineapple':
+        assert {'lookup','lookdown','lookleft','lookright'}<=groups.keys()
+        assert v['firstPerson']['lookAtTypeName']=='BlendShape'
     textured=[(m,vm) for m,vm in zip(doc['materials'],v['materialProperties']) if 'baseColorTexture' in m.get('pbrMetallicRoughness',{})]
     assert all(m['shader']=='VRM_USE_GLTFSHADER' for m in v['materialProperties'])
     assert any('metallicRoughnessTexture' in m.get('pbrMetallicRoughness',{}) for m in doc['materials']), 'Roughness map missing'

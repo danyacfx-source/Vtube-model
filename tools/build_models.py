@@ -68,6 +68,15 @@ def pack_vrm(glb,out,bones,title):
             binds.append({'mesh':mi,'index':names.index(key),'weight':100})
         groups.append({'name':preset,'presetName':preset,'binds':binds,'materialValues':[],'isBinary':False})
     materials=[]
+    enhanced=title.lower()=='pineapple'
+    if enhanced:
+        for preset,key in [('lookup','LookUp'),('lookdown','LookDown'),('lookleft','LookLeft'),('lookright','LookRight')]:
+            binds=[]
+            for name in ['Eye_L','Eye_R']:
+                mi=doc['nodes'][nodes[name]]['mesh']
+                names=doc['meshes'][mi]['extras']['targetNames']
+                binds.append({'mesh':mi,'index':names.index(key),'weight':100})
+            groups.append({'name':preset,'presetName':preset,'binds':binds,'materialValues':[],'isBinary':False})
     for m in doc.get('materials',[]):
         c=m.get('pbrMetallicRoughness',{}).get('baseColorFactor',[1,1,1,1])
         materials.append({'name':m['name'],'shader':'VRM/MToon','renderQueue':2000,'floatProperties':{'_BlendMode':0,'_CullMode':2,'_ZWrite':1,'_Cutoff':.5,'_BumpScale':1,'_ReceiveShadowRate':1,'_ShadeShift':0,'_ShadeToony':.15,'_LightColorAttenuation':0,'_IndirectLightIntensity':.1,'_OutlineWidthMode':0,'_OutlineWidth':0,'_MToonVersion':38},'vectorProperties':{'_Color':c,'_ShadeColor':[c[0]*.62,c[1]*.62,c[2]*.62,1],'_EmissionColor':[0,0,0,1],'_MainTex':[0,0,1,1]},'textureProperties':{},'keywordMap':{},'tagMap':{'RenderType':'Opaque'}})
@@ -83,6 +92,14 @@ def pack_vrm(glb,out,bones,title):
     for target in materials:target['shader']='VRM_USE_GLTFSHADER'
     doc.setdefault('extensions',{})['VRM']={'exporterVersion':'FruitAvatars-4.0','specVersion':'0.0','meta':{'title':title,'version':'4.0','author':'Vtube-model','contactInformation':'','reference':'','allowedUserName':'Everyone','violentUssageName':'Disallow','sexualUssageName':'Disallow','commercialUssageName':'Allow','otherPermissionUrl':'','licenseName':'CC0','otherLicenseUrl':''},'humanoid':{'humanBones':[{'bone':b,'node':nodes[b],'useDefaultValues':True} for b in bones],'armStretch':.05,'legStretch':.05,'upperArmTwist':.5,'lowerArmTwist':.5,'upperLegTwist':.5,'lowerLegTwist':.5,'feetSpacing':0,'hasTranslationDoF':False},'firstPerson':{'firstPersonBone':nodes['head'],'firstPersonBoneOffset':{'x':0,'y':0,'z':0},'meshAnnotations':[{'mesh':i,'firstPersonFlag':'Auto'} for i in range(len(doc['meshes']))],'lookAtTypeName':'Bone','lookAtHorizontalInner':{'curve':[0,0,0,1,1,1,1,0],'xRange':90,'yRange':10},'lookAtHorizontalOuter':{'curve':[0,0,0,1,1,1,1,0],'xRange':90,'yRange':10},'lookAtVerticalDown':{'curve':[0,0,0,1,1,1,1,0],'xRange':90,'yRange':10},'lookAtVerticalUp':{'curve':[0,0,0,1,1,1,1,0],'xRange':90,'yRange':10}},'blendShapeMaster':{'blendShapeGroups':groups},'secondaryAnimation':{'boneGroups':[],'colliderGroups':[]},'materialProperties':materials}
     doc.setdefault('extensionsUsed',[]).append('VRM')
+    if enhanced:
+        vrm=doc['extensions']['VRM']
+        vrm['meta']['version']='5.0'
+        vrm['meta']['title']='Pineapple — VSeeFace'
+        vrm['exporterVersion']='FruitAvatars-5.0'
+        vrm['firstPerson']['lookAtTypeName']='BlendShape'
+        for direction in ['HorizontalInner','HorizontalOuter','VerticalDown','VerticalUp']:
+            vrm['firstPerson']['lookAt'+direction]['yRange']=100
     j=json.dumps(doc,separators=(',',':')).encode(); j+=b' '*((-len(j))%4)
     out.write_bytes(struct.pack('<III',0x46546c67,2,20+len(j)+len(binary))+struct.pack('<II',len(j),0x4e4f534a)+j+binary)
 
@@ -309,7 +326,42 @@ def photo_feature(name,kind,cx,cz,width,height,region,material,mouth=False):
             if keyname=='Happy':z+=.015*(1-((x-cx)/width)**2)
             r2=((x-cx)/(width*sx))**2+((z-cz)/(height*sz))**2
             v.co=(x,surface(kind,x,z,.008+.012*max(0,1-r2)),z)
+    if kind=='pineapple':
+        refine_vseeface_feature(ob,kind,cx,cz,width,height,mouth)
     return ob
+
+def refine_vseeface_feature(ob,kind,cx,cz,width,height,mouth):
+    """Keep lips thick while closing the photographed mouth cavity at rest.
+
+    Coordinates remain on the actual peel for every expression. Gaze warps
+    the iris region gently while leaving the outer eyelid boundary fixed.
+    """
+    keys=ob.data.shape_keys.key_blocks
+    source=[v.co.copy() for v in keys['Basis'].data]
+    if mouth:
+        openings={'Basis':.025,'A':1.18,'I':.22,'U':.55,'E':.70,'O':1.12,'JOY':.9,'SORROW':.06,'ANGRY':.10}
+        widths={'Basis':1,'A':.88,'I':1.08,'U':.67,'E':1.08,'O':.70,'JOY':1.08,'SORROW':.96,'ANGRY':1.01}
+        for key in keys:
+            for v,base in zip(key.data,source):
+                nx=(base.x-cx)/width;nz=(base.z-cz)/height
+                gap=.29*math.sqrt(max(0,1-(nx/.83)**2))
+                delta=max(-gap,min(gap,nz-.12))
+                # Fade deformation to zero at the photographed patch boundary.
+                fade=max(0,min(1,(1-abs(nz))/.32))
+                z=base.z-(1-openings[key.name])*delta*height*fade
+                x=cx+(base.x-cx)*widths[key.name]
+                if key.name=='SORROW':z-=.014*max(0,1-nx*nx)
+                if key.name=='JOY':z+=.010*nx*nx
+                v.co=(x,surface(kind,x,z,.018),z)
+        for v,basis in zip(ob.data.vertices,keys['Basis'].data):v.co=basis.co
+    else:
+        for name,dx,dz in [('LookLeft',.012,0),('LookRight',-.012,0),('LookUp',0,.008),('LookDown',0,-.008)]:
+            key=ob.shape_key_add(name=name)
+            for v,base in zip(key.data,source):
+                nx=(base.x-cx)/width;nz=(base.z-cz)/height
+                weight=max(0,1-nx*nx-nz*nz)**2
+                x=base.x+dx*weight;z=base.z+dz*weight
+                v.co=(x,surface(kind,x,z,.008+.012*weight),z)
 
 def build(kind):
     global FACE_SURFACE

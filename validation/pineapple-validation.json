@@ -2,7 +2,7 @@
   "uri": "pineapple.vrm",
   "mimeType": "model/gltf-binary",
   "validatorVersion": "2.0.0-dev.3.10",
-  "validatedAt": "2026-10-23T11:47:07.451Z",
+  "validatedAt": "2026-10-24T08:54:40.245Z",
   "issues": {
     "numErrors": 0,
     "numWarnings": 5,
@@ -67,37 +67,37 @@
         "code": "UNUSED_OBJECT",
         "message": "This object may be unused.",
         "severity": 2,
-        "pointer": "/accessors/17"
+        "pointer": "/accessors/25"
       },
       {
         "code": "UNUSED_OBJECT",
         "message": "This object may be unused.",
         "severity": 2,
-        "pointer": "/accessors/18"
+        "pointer": "/accessors/26"
       },
       {
         "code": "UNUSED_OBJECT",
         "message": "This object may be unused.",
         "severity": 2,
-        "pointer": "/accessors/30"
+        "pointer": "/accessors/46"
       },
       {
         "code": "UNUSED_OBJECT",
         "message": "This object may be unused.",
         "severity": 2,
-        "pointer": "/accessors/44"
+        "pointer": "/accessors/60"
       },
       {
         "code": "UNUSED_OBJECT",
         "message": "This object may be unused.",
         "severity": 2,
-        "pointer": "/accessors/51"
+        "pointer": "/accessors/67"
       },
       {
         "code": "UNUSED_OBJECT",
         "message": "This object may be unused.",
         "severity": 2,
-        "pointer": "/accessors/52"
+        "pointer": "/accessors/68"
       },
       {
         "code": "IMAGE_NPOT_DIMENSIONS",
@@ -119,7 +119,7 @@
         "pointer": "/buffers/0",
         "mimeType": "application/gltf-buffer",
         "storage": "glb",
-        "byteLength": 20931968
+        "byteLength": 21260848
       },
       {
         "pointer": "/images/0",
@@ -194,7 +194,7 @@
     "hasTextures": true,
     "hasDefaultScene": true,
     "drawCallCount": 6,
-    "totalVertexCount": 56175,
+    "totalVertexCount": 56170,
     "totalTriangleCount": 99600,
     "maxUVs": 1,
     "maxInfluences": 4,

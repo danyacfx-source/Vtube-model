@@ -1,7 +1,9 @@
 """Render the actual exported glTF payload, independently of the source meshes."""
-import bpy,pathlib,shutil
+import bpy,pathlib,shutil,sys
 root=pathlib.Path(__file__).resolve().parents[1]
-for kind in ['orange','pineapple']:
+selected=sys.argv[sys.argv.index('--')+1:] if '--' in sys.argv else ['orange','pineapple']
+for kind in selected:
+    assert kind in {'orange','pineapple'}
     bpy.ops.wm.open_mainfile(filepath=str(root/'models'/f'{kind}.blend'))
     bpy.ops.object.select_all(action='DESELECT')
     for ob in bpy.context.scene.objects:

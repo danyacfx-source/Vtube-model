@@ -5,6 +5,7 @@ It exports a GLB payload and packages VRM 1.0 extensions without third-party
 Blender add-ons so the build is reproducible in the cloud environment.
 """
 import bpy, math, json, struct, pathlib, sys
+import numpy as np
 from mathutils import Vector
 
 ROOT=pathlib.Path(__file__).resolve().parents[1]
@@ -13,6 +14,14 @@ OUT=ROOT/'output'; RENDERS=ROOT/'renders'; OUT.mkdir(exist_ok=True); RENDERS.mkd
 def mat(name,color,rough=.55,metal=0):
     m=bpy.data.materials.new(name);m.diffuse_color=(*color,1);m.use_nodes=True
     p=m.node_tree.nodes.get('Principled BSDF');p.inputs['Base Color'].default_value=(*color,1);p.inputs['Roughness'].default_value=rough;p.inputs['Metallic'].default_value=metal
+    if name=='Warm skin':
+        p.inputs['Subsurface Weight'].default_value=.08;p.inputs['Coat Weight'].default_value=.08
+    if any(k in name.lower() for k in ['textile','olive','webbing','glove']):
+        size=512;y,x=np.mgrid[:size,:size];rng=np.random.default_rng(sum((i+1)*ord(c) for i,c in enumerate(name)))
+        weave=(np.sin(x*math.pi/3)*np.sin(y*math.pi/4))*.035+rng.normal(0,.018,(size,size))
+        rgb=np.clip(np.asarray(color)[None,None,:]*(1+weave[...,None]),0,1);rgba=np.concatenate([rgb,np.ones((size,size,1))],axis=2).astype(np.float32)
+        im=bpy.data.images.new(name+' woven texture',width=size,height=size);im.pixels.foreach_set(rgba.ravel());im.pack()
+        tex=m.node_tree.nodes.new('ShaderNodeTexImage');tex.image=im;m.node_tree.links.new(tex.outputs['Color'],p.inputs['Base Color'])
     return m
 
 CHARCOAL=mat('Charcoal textile #111713',(0.024,0.035,0.027),.88)
@@ -88,6 +97,13 @@ def curve(name,points,bevel,material,cyclic=False):
     for b,p in zip(s.bezier_points,points):b.co=p;b.handle_left_type='AUTO';b.handle_right_type='AUTO'
     s.use_cyclic_u=cyclic;o=bpy.data.objects.new(name,c);bpy.context.collection.objects.link(o);o.data.materials.append(material);return o
 
+def tapered_curve(name,points,bevel,material,radii=None):
+    c=bpy.data.curves.new(name,'CURVE');c.dimensions='3D';c.resolution_u=3;c.bevel_depth=bevel;c.bevel_resolution=4;c.resolution_u=3
+    s=c.splines.new('BEZIER');s.bezier_points.add(len(points)-1)
+    radii=radii or [1]*(len(points)-1)+[.08]
+    for b,p,r in zip(s.bezier_points,points,radii):b.co=p;b.radius=r;b.handle_left_type='AUTO';b.handle_right_type='AUTO'
+    o=bpy.data.objects.new(name,c);bpy.context.collection.objects.link(o);o.data.materials.append(material);return o
+
 def text(name,body,loc,size,material,extr=.006,align='CENTER'):
     c=bpy.data.curves.new(name,'FONT');c.body=body;c.align_x=align;c.align_y='CENTER';c.size=size;c.extrude=extr;c.bevel_depth=.0015
     o=bpy.data.objects.new(name,c);bpy.context.collection.objects.link(o);o.location=loc;o.rotation_euler=(math.pi/2,0,0);o.data.materials.append(material);return o
@@ -129,6 +145,8 @@ def face(arm):
     # Mature narrow head and separate jaw/chin volume.
     head=anime_head('Face',SKIN);weight(head,arm,'head')
     neck=uv('Neck',(0,.012,1.80),(.080,.072,.16),SKIN);weight(neck,arm,'neck')
+    for side,s in [('L',-1),('R',1)]:
+        ear=uv('Ear_'+side,(s*.143,-.002,2.02),(.020,.018,.043),SKIN,32,20);weight(ear,arm,'head')
     # Nose has a restrained anime wedge, kept clear in frontal close-up.
     nose=uv('Nose',(0,-.121,2.006),(.014,.017,.037),SKIN,32,20);weight(nose,arm,'head')
     # Eye whites: flattened ovals with morph targets for blinks and tired expression.
@@ -136,13 +154,19 @@ def face(arm):
     for side,x in [('L',-.058),('R',.058)]:
         e=almond_eye('Eye_'+side,x);weight(e,arm,'head')
         eyes.append(e)
+        upper=tapered_curve('Upper eyelid '+side,[(x-.044,-.134,2.047),(x,-.139,2.066),(x+.044,-.134,2.047)],.0045,HAIR,[.45,1,.35]);weight(upper,arm,'head')
+        lower=tapered_curve('Lower eyelid '+side,[(x-.041,-.133,2.046),(x,-.136,2.031),(x+.041,-.133,2.046)],.0022,SKIN_LIP,[.25,.75,.2]);weight(lower,arm,'head')
         iris=uv('Iris_'+side,(x,-.132,2.046),(.013,.003,.014),IRIS,32,20);weight(iris,arm,'head');iris.shape_key_add(name='Basis')
         ib=[v.co.copy() for v in iris.data.vertices]
         for keyname,dx,dz in [('LookLeft',-.012,0),('LookRight',.012,0),('LookUp',0,.010),('LookDown',0,-.010)]:
             k=iris.shape_key_add(name=keyname)
             for v,b in zip(k.data,ib):v.co=(b.x+dx,b.y,b.z+dz)
-        pupil=uv('Pupil_'+side,(x,-.133,2.046),(.005,.002,.009),BLACK,24,16);weight(pupil,arm,'head')
-        catch=uv('EyeCatch_'+side,(x-.004,-.136,2.054),(.0025,.001,.0035),AMBER,16,8);weight(catch,arm,'head')
+        k=iris.shape_key_add(name='Blink')
+        for v,b in zip(k.data,ib):v.co=(b.x,b.y,b.z*.02)
+        pupil=uv('Pupil_'+side,(x,-.133,2.046),(.005,.002,.009),BLACK,24,16);weight(pupil,arm,'head');pupil.shape_key_add(name='Basis');pb=[v.co.copy() for v in pupil.data.vertices];k=pupil.shape_key_add(name='Blink')
+        for v,b in zip(k.data,pb):v.co=(b.x,b.y,b.z*.02)
+        catch=uv('EyeCatch_'+side,(x-.004,-.136,2.054),(.0025,.001,.0035),AMBER,16,8);weight(catch,arm,'head');catch.shape_key_add(name='Basis');cb=[v.co.copy() for v in catch.data.vertices];k=catch.shape_key_add(name='Blink')
+        for v,b in zip(k.data,cb):v.co=(b.x,b.y,2.046+(b.z-2.046)*.02)
     # Strong expressive brows.
     for side,s in [('L',-1),('R',1)]:
         b=curve('Brow_'+side,[(s*.102,-.126,2.085),(s*.060,-.132,2.096),(s*.022,-.128,2.090)],.0055,HAIR);weight(b,arm,'head')
@@ -161,16 +185,24 @@ def hair(arm):
     # stays above the eye line, while side/back locks establish the turnaround.
     objects=[]
     cap=uv('Hair cap',(0,.014,2.125),(.153,.120,.140),HAIR,48,32);weight(cap,arm,'head');objects.append(cap)
-    locks=[
-      (-.13,-.13,2.20,-.09,-.145,2.07),(-.09,-.14,2.23,-.045,-.151,2.075),(-.04,-.145,2.235,.00,-.153,2.09),(.01,-.145,2.23,.045,-.153,2.06),(.06,-.135,2.22,.085,-.146,2.075),(.11,-.12,2.20,.13,-.13,2.08),
-      (-.15,-.07,2.18,-.175,-.05,2.02),(.15,-.07,2.18,.175,-.05,2.01),(-.17,.00,2.14,-.18,.05,1.99),(.17,.00,2.14,.18,.05,1.99),
-      (-.12,.08,2.20,-.16,.10,2.03),(-.06,.12,2.24,-.08,.14,2.02),(0,.13,2.25,.01,.15,2.02),(.07,.12,2.23,.09,.14,2.02),(.13,.08,2.19,.16,.10,2.02),
-      (-.10,-.04,2.25,-.17,-.10,2.18),(.10,-.04,2.25,.18,-.08,2.17),(-.03,.00,2.27,-.13,-.05,2.22),(.03,.00,2.27,.14,-.03,2.21)]
-    for i,(x1,y1,z1,x2,y2,z2) in enumerate(locks):
-        o=hair_lock('Hair lock %02d'%i,(x1,y1,z1),(x2,y2,z2),.022 if i<6 else .027,HAIR_HI if i%5==0 else HAIR);weight(o,arm,'head');objects.append(o)
+    # Asymmetric layered fringe, then side and crown locks. Every strand tapers
+    # to a real point and follows a curved three-control-point path.
+    locks=[]
+    front=[(-.142,2.18,-.126,2.08),(-.125,2.205,-.105,2.035),(-.103,2.23,-.076,2.07),(-.078,2.238,-.055,2.015),(-.052,2.245,-.025,2.065),(-.025,2.25,.006,2.025),(.004,2.248,.028,2.078),(.030,2.24,.052,2.04),(.057,2.228,.075,2.082),(.082,2.215,.104,2.035),(.108,2.195,.125,2.072),(.132,2.17,.147,2.095)]
+    for i,(x1,z1,x2,z2) in enumerate(front):
+        y=-.125-(i%3)*.006;locks.append(((x1,-.106,z1),((x1+x2)*.5,y-.018,(z1+z2)*.5+.022),(x2,y,z2),.0105+(i%4)*.0007))
+    for side in [-1,1]:
+        for j in range(7):
+            root=(side*(.09+j*.011),-.06+j*.018,2.22-j*.012);tip=(side*(.155+j*.006),-.03+j*.020,2.10-j*.027)
+            locks.append((root,(side*.17,(root[1]+tip[1])*.5-.015,(root[2]+tip[2])*.5+.018),tip,.015+j*.0008))
+    for j in range(12):
+        a=math.tau*j/12+.15;root=(.09*math.cos(a),.075*math.sin(a),2.235);tip=(.18*math.cos(a),.11*math.sin(a),2.13+.035*math.sin(a*2))
+        locks.append((root,(.15*math.cos(a),.10*math.sin(a),2.23),tip,.015))
+    for i,(p0,p1,p2,w) in enumerate(locks):
+        o=tapered_curve('Hair lock %02d'%i,[p0,p1,p2],w,HAIR_HI if i%9==0 else HAIR,[1,.78,.05]);weight(o,arm,'head');objects.append(o)
     # Ten physics locks match the spring chains in the rig.
     for i in range(10):
-        x=-.16+i*.035;o=hair_lock('Physics hair %02d'%i,(x,.04,2.19),(x*1.10,.02,2.02),.016,HAIR,bend=(0,.015,.015))
+        x=-.16+i*.035;o=tapered_curve('Physics hair %02d'%i,[(x,.05,2.19),(x*1.08,.07,2.10),(x*1.12,.055,2.01)],.010,HAIR,[1,.7,.04])
         weight(o,arm,f'hair_{i}_1');objects.append(o)
     return objects
 
@@ -182,8 +214,9 @@ def torso_and_limbs(arm):
     hood=curve('Lowered hood',[(-.18,.08,1.75),(0,.18,1.84),(.18,.08,1.75)],.055,CHARCOAL);weight(hood,arm,'upperChest');objs.append(hood)
     collar=curve('High collar',[(-.13,-.08,1.75),(0,-.12,1.79),(.13,-.08,1.75)],.035,CHARCOAL);weight(collar,arm,'upperChest');objs.append(collar)
     for side,s in [('left',1),('right',-1)]:
-        ua=capsule(side+' hoodie sleeve',(s*.22,0,1.68),(s*.47,0,1.58),(.095,.090),CHARCOAL);weight(ua,arm,side+'UpperArm');objs.append(ua)
-        la=capsule(side+' forearm sleeve',(s*.48,0,1.57),(s*.69,-.005,1.42),(.075,.072),CHARCOAL);weight(la,arm,side+'LowerArm');objs.append(la)
+        ua=capsule(side+' hoodie sleeve',(s*.22,0,1.68),(s*.47,0,1.58),(.076,.073),CHARCOAL);weight(ua,arm,side+'UpperArm');objs.append(ua)
+        la=capsule(side+' forearm sleeve',(s*.48,0,1.57),(s*.69,-.005,1.42),(.063,.060),CHARCOAL);weight(la,arm,side+'LowerArm');objs.append(la)
+        cuff=cyl(side+' sleeve cuff',(s*.69,-.005,1.42),.068,.050,OLIVE2,rot=(0,s*.95,0));weight(cuff,arm,side+'LowerArm');objs.append(cuff)
         hand=uv(side+' fingerless glove',(s*.755,-.015,1.37),(.060,.040,.082),GLOVE);weight(hand,arm,side+'Hand');objs.append(hand)
         thigh=uv(side+' tactical trouser thigh',(s*.135,.02,.82),(.145,.14,.33),CHARCOAL);weight(thigh,arm,side+'UpperLeg');objs.append(thigh)
         shin=uv(side+' tactical trouser shin',(s*.135,.01,.38),(.12,.115,.30),CHARCOAL);weight(shin,arm,side+'LowerLeg');objs.append(shin)
@@ -247,7 +280,9 @@ def export_vrm1(arm):
         mi=doc['nodes'][nodes[node]]['mesh'];names=doc['meshes'][mi].get('extras',{}).get('targetNames',[]);return {'node':nodes[node],'index':names.index(key),'weight':1}
     def binds(*items):return {'morphTargetBinds':[morph(*i) for i in items],'isBinary':False,'overrideBlink':'none','overrideLookAt':'none','overrideMouth':'none'}
     preset={
-      'blink':binds(('Eye_L','Blink'),('Eye_R','Blink')),'blinkLeft':binds(('Eye_L','Blink')),'blinkRight':binds(('Eye_R','Blink')),
+      'blink':binds(('Eye_L','Blink'),('Iris_L','Blink'),('Pupil_L','Blink'),('Eye_R','Blink'),('Iris_R','Blink'),('Pupil_R','Blink')),
+      'blinkLeft':binds(('Eye_L','Blink'),('Iris_L','Blink'),('Pupil_L','Blink')),
+      'blinkRight':binds(('Eye_R','Blink'),('Iris_R','Blink'),('Pupil_R','Blink')),
       'aa':binds(('Mouth','A')),'ih':binds(('Mouth','I')),'ou':binds(('Mouth','U')),'ee':binds(('Mouth','E')),'oh':binds(('Mouth','O')),
       'happy':binds(('Mouth','Smile')),'sad':binds(('Mouth','Sad'),('Eye_L','Tired'),('Eye_R','Tired')),'angry':binds(('Mouth','Irritated'),('Eye_L','Squint'),('Eye_R','Squint')),
       'relaxed':binds(('Eye_L','Tired'),('Eye_R','Tired')),'surprised':binds(('Mouth','Surprised'),('Eye_L','Wide'),('Eye_R','Wide')),
@@ -267,19 +302,22 @@ def export_vrm1(arm):
     raw=json.dumps(doc,separators=(',',':')).encode();raw+=b' '*((-len(raw))%4)
     out=OUT/'DENDICH_RADIO_SILENCE.vrm';out.write_bytes(struct.pack('<III',0x46546c67,2,20+len(raw)+len(binary))+struct.pack('<II',len(raw),0x4e4f534a)+raw+binary);glb.unlink();return out
 
-def lighting_and_render():
+def lighting_and_render(do_render=True):
     scene=bpy.context.scene;scene.render.engine='BLENDER_EEVEE_NEXT';scene.render.resolution_x=900;scene.render.resolution_y=1100;scene.render.resolution_percentage=100;scene.render.image_settings.file_format='PNG';scene.render.film_transparent=True
     scene.view_settings.look='AgX - Medium High Contrast';scene.world.color=(.008,.010,.009)
     for loc,energy,color,size in [((-3,-4,5),900,(1,.72,.55),4),((3,-2,3),650,(.55,.68,1),3),((0,2,4),800,(.62,.75,.62),3)]:
         bpy.ops.object.light_add(type='AREA',location=loc);l=bpy.context.object;l.data.energy=energy;l.data.color=color;l.data.shape='DISK';l.data.size=size;l.rotation_euler=(Vector((0,0,1.45))-l.location).to_track_quat('-Z','Y').to_euler()
     bpy.ops.object.camera_add(location=(0,-5.1,1.55));cam=bpy.context.object;cam.data.lens=58;cam.rotation_euler=(Vector((0,0,1.35))-cam.location).to_track_quat('-Z','Y').to_euler();scene.camera=cam
-    scene.render.filepath=str(RENDERS/'DENDICH_full_front.png');bpy.ops.render.render(write_still=True)
-    cam.location=(.55,-4.1,1.78);cam.rotation_euler=(Vector((0,0,1.65))-cam.location).to_track_quat('-Z','Y').to_euler();cam.data.lens=68;scene.render.filepath=str(RENDERS/'DENDICH_halfbody_3q.png');bpy.ops.render.render(write_still=True)
-    cam.location=(0,-3.0,2.03);cam.rotation_euler=(Vector((0,0,2.01))-cam.location).to_track_quat('-Z','Y').to_euler();cam.data.lens=72;scene.render.filepath=str(RENDERS/'DENDICH_face_closeup.png');bpy.ops.render.render(write_still=True)
+    scene.render.filepath=str(RENDERS/'DENDICH_full_front.png')
+    if do_render:bpy.ops.render.render(write_still=True)
+    cam.location=(.55,-4.1,1.78);cam.rotation_euler=(Vector((0,0,1.65))-cam.location).to_track_quat('-Z','Y').to_euler();cam.data.lens=68;scene.render.filepath=str(RENDERS/'DENDICH_halfbody_3q.png')
+    if do_render:bpy.ops.render.render(write_still=True)
+    cam.location=(0,-3.0,2.03);cam.rotation_euler=(Vector((0,0,2.01))-cam.location).to_track_quat('-Z','Y').to_euler();cam.data.lens=72;scene.render.filepath=str(RENDERS/'DENDICH_face_closeup.png')
+    if do_render:bpy.ops.render.render(write_still=True)
 
 def main():
     bpy.ops.object.select_all(action='SELECT');bpy.ops.object.delete(use_global=False)
     arm=rig();face(arm);hair(arm);torso_and_limbs(arm);equipment(arm);headset(arm)
-    lighting_and_render();bpy.context.preferences.filepaths.save_version=0;bpy.ops.wm.save_as_mainfile(filepath=str(OUT/'DENDICH_RADIO_SILENCE.blend'));export_vrm1(arm)
+    lighting_and_render('--skip-renders' not in sys.argv);bpy.context.preferences.filepaths.save_version=0;bpy.ops.wm.save_as_mainfile(filepath=str(OUT/'DENDICH_RADIO_SILENCE.blend'));export_vrm1(arm)
 
 if __name__=='__main__':main()

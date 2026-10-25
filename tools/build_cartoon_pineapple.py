@@ -15,8 +15,6 @@ for name in ['Eye_L','Eye_R','Mouth','Cheek_L','Cheek_R']:
     if bpy.data.objects.get(name):bpy.data.objects.remove(bpy.data.objects[name],do_unlink=True)
 for name,cx,cz in [('Eye_L',-.18,1.63),('Eye_R',.18,1.63),('Mouth',0,1.32)]:
     ob=make(api,name,cx,cz,name=='Mouth');api['bind'](ob,arm)
-for name,cx in [('Cheek_L',-.245),('Cheek_R',.245)]:
-    ob=accent(api,name,cx,1.41,.047,.019,(.34,.045,.024));api['bind'](ob,arm)
 # Six spring bones distribute the upper crown by angle. Bases stay on the head;
 # tips inherit the spring bone progressively, avoiding a detached-looking crown.
 bpy.context.view_layer.objects.active=arm;bpy.ops.object.mode_set(mode='EDIT')

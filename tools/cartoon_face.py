@@ -47,13 +47,15 @@ def make_feature(api, name, cx, cz, mouth=False):
                     squash=.035 if blink else 1
                     dx={'LookLeft':.026,'LookRight':-.026}.get(expression,0)
                     dz={'LookUp':.019,'LookDown':-.019}.get(expression,0)
-                    spec={'border':(.143,.120,0,0,.016),'white':(.130,.107,0,0,.025),'iris':(.059,.079,dx,dz,.037),'pupil':(.030,.056,dx,dz,.045),'spark':(.017,.023,dx-.017,dz+.032,.053),'spark2':(.008,.010,dx+.020,dz-.029,.054),'brow':(.118,.012,0,.153,.021)}
+                    # Restrained adult-cartoon proportions: horizontal almond
+                    # eyes, slim upper line and moderate irises, not googly eyes.
+                    spec={'border':(.126,.072,0,0,.016),'white':(.116,.060,0,0,.025),'iris':(.036,.044,dx,dz,.037),'pupil':(.016,.027,dx,dz,.045),'spark':(.009,.012,dx-.010,dz+.016,.053),'spark2':(.004,.006,dx+.011,dz-.014,.054),'brow':(.105,.008,0,.112,.021)}
                     w,h,ox,oz,offset=spec[part]
                     x=cx+ox+w*nx
                     z=cz+(oz+h*nz)*(1 if part=='brow' else squash)
                     if blink and part not in {'border','brow'}:offset=.010
                     if expression=='Happy' and part=='brow':z+=.018
-                    if part=='brow':z+=.012*nx*(1 if cx<0 else -1)
+                    if part=='brow':z+=.008*nx*(1 if cx<0 else -1)
                 # Every visible layer follows the actual skin rather than a flat plane.
                 y=api['surface']('pineapple',x,z,offset)
                 verts.append((x,y,z))

@@ -2,10 +2,10 @@
   "uri": "pineapple.vrm",
   "mimeType": "model/gltf-binary",
   "validatorVersion": "2.0.0-dev.3.10",
-  "validatedAt": "2026-10-25T21:31:49.094Z",
+  "validatedAt": "2026-10-25T21:37:45.167Z",
   "issues": {
     "numErrors": 0,
-    "numWarnings": 7,
+    "numWarnings": 5,
     "numInfos": 4,
     "numHints": 0,
     "messages": [
@@ -25,7 +25,7 @@
         "code": "UNUSED_OBJECT",
         "message": "This object may be unused.",
         "severity": 2,
-        "pointer": "/meshes/4/primitives/0/attributes/TEXCOORD_0"
+        "pointer": "/meshes/2/primitives/0/attributes/TEXCOORD_0"
       },
       {
         "code": "NODE_SKINNED_MESH_NON_ROOT",
@@ -52,28 +52,16 @@
         "pointer": "/nodes/28"
       },
       {
-        "code": "NODE_SKINNED_MESH_NON_ROOT",
-        "message": "Node with a skinned mesh is not root. Parent transforms will not affect a skinned mesh.",
-        "severity": 1,
-        "pointer": "/nodes/29"
-      },
-      {
-        "code": "NODE_SKINNED_MESH_NON_ROOT",
-        "message": "Node with a skinned mesh is not root. Parent transforms will not affect a skinned mesh.",
-        "severity": 1,
-        "pointer": "/nodes/30"
+        "code": "UNUSED_OBJECT",
+        "message": "This object may be unused.",
+        "severity": 2,
+        "pointer": "/accessors/168"
       },
       {
         "code": "UNUSED_OBJECT",
         "message": "This object may be unused.",
         "severity": 2,
-        "pointer": "/accessors/177"
-      },
-      {
-        "code": "UNUSED_OBJECT",
-        "message": "This object may be unused.",
-        "severity": 2,
-        "pointer": "/accessors/191"
+        "pointer": "/accessors/182"
       }
     ],
     "truncated": false
@@ -89,7 +77,7 @@
         "pointer": "/buffers/0",
         "mimeType": "application/gltf-buffer",
         "storage": "glb",
-        "byteLength": 19206440
+        "byteLength": 19200092
       },
       {
         "pointer": "/images/0",
@@ -145,14 +133,14 @@
       }
     ],
     "animationCount": 0,
-    "materialCount": 18,
+    "materialCount": 16,
     "hasMorphTargets": true,
     "hasSkins": true,
     "hasTextures": true,
     "hasDefaultScene": true,
-    "drawCallCount": 18,
-    "totalVertexCount": 60939,
-    "totalTriangleCount": 107920,
+    "drawCallCount": 16,
+    "totalVertexCount": 60809,
+    "totalTriangleCount": 107792,
     "maxUVs": 1,
     "maxInfluences": 4,
     "maxAttributes": 6

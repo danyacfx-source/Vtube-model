@@ -3,6 +3,16 @@ import math
 import bpy
 
 
+def make_accent(api,name,cx,cz,width,height,color):
+    material=api['mat'](name+' material',color,.58);segments=64
+    verts=[(cx,api['surface']('pineapple',cx,cz,.024),cz)];faces=[]
+    for i in range(segments):
+        a=math.tau*i/segments;x=cx+width*math.cos(a);z=cz+height*math.sin(a)
+        verts.append((x,api['surface']('pineapple',x,z,.024),z))
+    for i in range(segments):faces.append((0,1+i,1+(i+1)%segments))
+    return api['mesh_object'](name,verts,faces,material)
+
+
 def make_feature(api, name, cx, cz, mouth=False):
     material_specs=[('Ink',(.012,.018,.025)),('White',(.94,.96,.90)),('Iris',(.025,.38,.28)),('Pupil',(.006,.012,.018)),('Spark',(1,1,1)),('Tongue',(.85,.15,.24))]
     materials=[api['mat']('Cartoon '+n,c,.45) for n,c in material_specs]

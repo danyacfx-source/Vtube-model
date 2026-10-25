@@ -11,7 +11,7 @@ for path in sorted((root/'models').glob('*.vrm')):
     assert len(set(bones.values()))==len(bones)
     assert all(0<=i<len(doc['nodes']) for i in bones.values())
     skin_nodes=[n for n in doc['nodes'] if 'mesh' in n]
-    assert len(skin_nodes)==4 and all('skin' in n for n in skin_nodes)
+    assert len(skin_nodes)>=4 and all('skin' in n for n in skin_nodes)
     for node in skin_nodes:
         skin=doc['skins'][node['skin']]; assert bones['head'] in skin['joints']
         for p in doc['meshes'][node['mesh']]['primitives']:
@@ -29,10 +29,11 @@ for path in sorted((root/'models').glob('*.vrm')):
                 moved|=any(abs(x)>1e-6 for x in acc['min']+acc['max'])
             assert moved, 'Empty expression'
     assert len(v['materialProperties'])==len(doc['materials'])
-    assert v['meta']['version']==('6.0' if path.stem=='pineapple' else '4.0')
+    assert v['meta']['version']==('7.0' if path.stem=='pineapple' else '4.0')
     if path.stem=='pineapple':
         assert {'lookup','lookdown','lookleft','lookright'}<=groups.keys()
         assert v['firstPerson']['lookAtTypeName']=='BlendShape'
+        springs=v['secondaryAnimation']['boneGroups'];assert len(springs)==1 and len(springs[0]['bones'])==6
     textured=[(m,vm) for m,vm in zip(doc['materials'],v['materialProperties']) if 'baseColorTexture' in m.get('pbrMetallicRoughness',{})]
     assert all(m['shader']=='VRM_USE_GLTFSHADER' for m in v['materialProperties'])
     assert any('metallicRoughnessTexture' in m.get('pbrMetallicRoughness',{}) for m in doc['materials']), 'Roughness map missing'

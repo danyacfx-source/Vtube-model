@@ -90,7 +90,9 @@ def pack_vrm(glb,out,bones,title):
             target['keywordMap']['_NORMALMAP']=True
     # Official VRM 0 shader sentinel: preserve glTF metallic/roughness PBR.
     for target in materials:target['shader']='VRM_USE_GLTFSHADER'
-    doc.setdefault('extensions',{})['VRM']={'exporterVersion':'FruitAvatars-4.0','specVersion':'0.0','meta':{'title':title,'version':'4.0','author':'Vtube-model','contactInformation':'','reference':'','allowedUserName':'Everyone','violentUssageName':'Disallow','sexualUssageName':'Disallow','commercialUssageName':'Allow','otherPermissionUrl':'','licenseName':'CC0','otherLicenseUrl':''},'humanoid':{'humanBones':[{'bone':b,'node':nodes[b],'useDefaultValues':True} for b in bones],'armStretch':.05,'legStretch':.05,'upperArmTwist':.5,'lowerArmTwist':.5,'upperLegTwist':.5,'lowerLegTwist':.5,'feetSpacing':0,'hasTranslationDoF':False},'firstPerson':{'firstPersonBone':nodes['head'],'firstPersonBoneOffset':{'x':0,'y':0,'z':0},'meshAnnotations':[{'mesh':i,'firstPersonFlag':'Auto'} for i in range(len(doc['meshes']))],'lookAtTypeName':'Bone','lookAtHorizontalInner':{'curve':[0,0,0,1,1,1,1,0],'xRange':90,'yRange':10},'lookAtHorizontalOuter':{'curve':[0,0,0,1,1,1,1,0],'xRange':90,'yRange':10},'lookAtVerticalDown':{'curve':[0,0,0,1,1,1,1,0],'xRange':90,'yRange':10},'lookAtVerticalUp':{'curve':[0,0,0,1,1,1,1,0],'xRange':90,'yRange':10}},'blendShapeMaster':{'blendShapeGroups':groups},'secondaryAnimation':{'boneGroups':[],'colliderGroups':[]},'materialProperties':materials}
+    leaf_nodes=[nodes[n] for n in sorted(nodes) if n.startswith('leaf_spring_')]
+    springs=[] if not leaf_nodes else [{'comment':'Pineapple crown','stiffiness':.72,'gravityPower':.10,'gravityDir':{'x':0,'y':-1,'z':0},'dragForce':.32,'center':-1,'hitRadius':.015,'bones':leaf_nodes,'colliderGroups':[]}]
+    doc.setdefault('extensions',{})['VRM']={'exporterVersion':'FruitAvatars-4.0','specVersion':'0.0','meta':{'title':title,'version':'4.0','author':'Vtube-model','contactInformation':'','reference':'','allowedUserName':'Everyone','violentUssageName':'Disallow','sexualUssageName':'Disallow','commercialUssageName':'Allow','otherPermissionUrl':'','licenseName':'CC0','otherLicenseUrl':''},'humanoid':{'humanBones':[{'bone':b,'node':nodes[b],'useDefaultValues':True} for b in bones],'armStretch':.05,'legStretch':.05,'upperArmTwist':.5,'lowerArmTwist':.5,'upperLegTwist':.5,'lowerLegTwist':.5,'feetSpacing':0,'hasTranslationDoF':False},'firstPerson':{'firstPersonBone':nodes['head'],'firstPersonBoneOffset':{'x':0,'y':0,'z':0},'meshAnnotations':[{'mesh':i,'firstPersonFlag':'Auto'} for i in range(len(doc['meshes']))],'lookAtTypeName':'Bone','lookAtHorizontalInner':{'curve':[0,0,0,1,1,1,1,0],'xRange':90,'yRange':10},'lookAtHorizontalOuter':{'curve':[0,0,0,1,1,1,1,0],'xRange':90,'yRange':10},'lookAtVerticalDown':{'curve':[0,0,0,1,1,1,1,0],'xRange':90,'yRange':10},'lookAtVerticalUp':{'curve':[0,0,0,1,1,1,1,0],'xRange':90,'yRange':10}},'blendShapeMaster':{'blendShapeGroups':groups},'secondaryAnimation':{'boneGroups':springs,'colliderGroups':[]},'materialProperties':materials}
     doc.setdefault('extensionsUsed',[]).append('VRM')
     if enhanced:
         vrm=doc['extensions']['VRM']
@@ -101,9 +103,9 @@ def pack_vrm(glb,out,bones,title):
         for direction in ['HorizontalInner','HorizontalOuter','VerticalDown','VerticalUp']:
             vrm['firstPerson']['lookAt'+direction]['yRange']=100
         if any(n.get('extras',{}).get('face_style')=='cartoon' for n in doc['nodes']):
-            vrm['meta']['version']='6.0'
+            vrm['meta']['version']='7.0'
             vrm['meta']['title']='Cartoon Pineapple — VSeeFace'
-            vrm['exporterVersion']='FruitAvatars-6.0'
+            vrm['exporterVersion']='FruitAvatars-7.0'
     j=json.dumps(doc,separators=(',',':')).encode(); j+=b' '*((-len(j))%4)
     out.write_bytes(struct.pack('<III',0x46546c67,2,20+len(j)+len(binary))+struct.pack('<II',len(j),0x4e4f534a)+j+binary)
 

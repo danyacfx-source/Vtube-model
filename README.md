@@ -1,5 +1,13 @@
 # Апельсин и ананас с человеческими лицами для VSeeFace
 
+## DENDICH / RADIO SILENCE — VRM 1.0
+
+Новая оригинальная гуманоидная модель тактического радиста создана с нуля по предоставленным ТЗ и референсам. В комплекте `.blend`, `.vrm`, процедурные Blender/Python-исходники, референсы, проверка экспорта и настоящие рендеры.
+
+**[Скачать DENDICH / RADIO SILENCE](dendich/DENDICH_RADIO_SILENCE_VRM1.zip)** · **[Документация](dendich/README.md)** · **[Крупный план](dendich/renders/DENDICH_face_closeup.png)**
+
+Файл использует VRM 1.0. Для трекинга нужен клиент с явной поддержкой VRM 1.0, например Warudo или VNyan; VSeeFace рассчитан прежде всего на VRM 0.x.
+
 ## Мультяшный ананас для VSeeFace — версия 6
 
 **[Скачать ананас отдельно](Pineapple-VSeeFace.zip)** · **[Инструкция VSeeFace](VSeeFace-pineapple.md)**

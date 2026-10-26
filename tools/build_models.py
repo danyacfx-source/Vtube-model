@@ -100,6 +100,9 @@ def pack_vrm(glb,out,bones,title):
         vrm['meta']['title']='Pineapple — VSeeFace'
         vrm['exporterVersion']='FruitAvatars-5.0'
         vrm['firstPerson']['lookAtTypeName']='BlendShape'
+        # A fruit has no separate visible torso. Let VMC/VSeeFace positional
+        # tracking drive the whole visible avatar through the head chain.
+        vrm['humanoid']['hasTranslationDoF']=True
         for direction in ['HorizontalInner','HorizontalOuter','VerticalDown','VerticalUp']:
             vrm['firstPerson']['lookAt'+direction]['yRange']=100
         if any(n.get('extras',{}).get('face_style')=='cartoon' for n in doc['nodes']):

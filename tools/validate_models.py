@@ -34,6 +34,7 @@ for path in sorted((root/'models').glob('*.vrm')):
         assert {'lookup','lookdown','lookleft','lookright'}<=groups.keys()
         assert v['firstPerson']['lookAtTypeName']=='BlendShape'
         springs=v['secondaryAnimation']['boneGroups'];assert len(springs)==1 and len(springs[0]['bones'])==6
+        assert v['humanoid']['hasTranslationDoF'] is True
     textured=[(m,vm) for m,vm in zip(doc['materials'],v['materialProperties']) if 'baseColorTexture' in m.get('pbrMetallicRoughness',{})]
     assert all(m['shader']=='VRM_USE_GLTFSHADER' for m in v['materialProperties'])
     assert any('metallicRoughnessTexture' in m.get('pbrMetallicRoughness',{}) for m in doc['materials']), 'Roughness map missing'

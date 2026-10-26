@@ -8,6 +8,8 @@ for path in sorted((root/'models').glob('*.vrm')):
     n,t=struct.unpack_from('<II',data,12); assert t==0x4e4f534a
     doc=json.loads(data[20:20+n]); v=doc['extensions']['VRM']; assert v['specVersion']=='0.0'
     bones={b['bone']:b['node'] for b in v['humanoid']['humanBones']}; assert required<=bones.keys()
+    allowed=required|{'leftShoulder','rightShoulder'}
+    assert set(bones)<=allowed, f'Non-humanoid bones leaked into humanoid map: {set(bones)-allowed}'
     assert len(set(bones.values()))==len(bones)
     assert all(0<=i<len(doc['nodes']) for i in bones.values())
     skin_nodes=[n for n in doc['nodes'] if 'mesh' in n]
